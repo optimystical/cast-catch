@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#040a16">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Cast &amp; Catch · 33rdPath</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,300&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+  html,body{width:100%;height:100%;overflow:hidden;background:#040a16;font-family:'Fraunces',serif;color:#e8d9b8;overscroll-behavior:none}
+  #scene{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+  .hud{position:fixed;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px) + 18px) calc(env(safe-area-inset-right,0px) + 22px) calc(env(safe-area-inset-bottom,0px) + 18px) calc(env(safe-area-inset-left,0px) + 22px);z-index:10}
+  .hud-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+  .hud-bot{display:flex;flex-direction:column;align-items:center;gap:12px}
+
+  .label{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:rgba(232,217,184,.42)}
+  .label.armed{color:#ff9a4a}
+
+  .compass{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+  .compass-readout{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:600;color:#f0c674;letter-spacing:.03em;text-shadow:0 0 18px rgba(240,198,116,.4)}
+  .compass-cardinal{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.32em;color:rgba(232,217,184,.45)}
+
+  .status{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+  .status-state{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.24em;color:#f0c674;text-transform:uppercase}
+  .status-catches{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:600;color:#e8d9b8}
+
+  .prompt{font-family:'Fraunces',serif;font-style:italic;font-weight:300;font-size:19px;color:rgba(232,217,184,.85);text-align:center;line-height:1.2;max-width:70%;transition:opacity .35s,color .3s;text-shadow:0 0 18px rgba(4,10,22,.9)}
+  .prompt.lost{color:#ff7a6a}
+
+  .arming-panel{position:fixed;left:calc(env(safe-area-inset-left,0px) + 22px);top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:18px;z-index:11;opacity:0;pointer-events:none;transition:opacity .25s}
+  .arming-panel.show{opacity:1}
+  .meter-block{display:flex;flex-direction:column;gap:6px}
+  .meter-block-label{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.3em;color:rgba(232,217,184,.5);text-transform:uppercase}
+  .meter-block-value{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:600;color:#f0c674;letter-spacing:.04em}
+  .meter-block.peak .meter-block-value{color:#ff9a4a;text-shadow:0 0 12px rgba(255,154,74,.5)}
+
+  .power-bar{width:140px;height:6px;background:rgba(232,217,184,.1);position:relative;overflow:hidden}
+  .power-bar-fill{position:absolute;left:0;top:0;height:100%;background:linear-gradient(90deg,#f0c674,#ff7a3d);width:0;transition:width .05s linear;box-shadow:0 0 12px rgba(240,198,116,.7)}
+  .power-bar-peak{position:absolute;top:-3px;width:2px;height:12px;background:#ff9a4a;left:0;box-shadow:0 0 8px rgba(255,154,74,.8)}
+
+  .dir-bar{width:140px;height:6px;background:rgba(232,217,184,.1);position:relative}
+  .dir-bar-center{position:absolute;left:50%;top:-3px;width:1px;height:12px;background:rgba(232,217,184,.4);transform:translateX(-50%)}
+  .dir-bar-marker{position:absolute;left:50%;top:-4px;width:3px;height:14px;background:#f0c674;transform:translateX(-50%);transition:left .08s linear;box-shadow:0 0 8px rgba(240,198,116,.7)}
+
+  .ticks{display:flex;gap:5px;justify-content:center;flex-wrap:wrap;max-width:70%;opacity:0;transition:opacity .3s}
+  .ticks.show{opacity:1}
+  .tick{width:16px;height:2px;background:rgba(232,217,184,.16);transition:background .18s,transform .18s,box-shadow .18s}
+  .tick.on{background:#f0c674;transform:scaleY(2.5);box-shadow:0 0 10px rgba(240,198,116,.8)}
+
+  /* Trigger — placed per empirical thumb landing data: (291/411, 658/809) of viewport */
+  .trigger{
+    position:fixed;
+    width:110px;height:110px;
+    border-radius:50%;
+    border:2px solid rgba(240,198,116,.6);
+    background:radial-gradient(circle at 35% 35%,#3a2a18,#1a1208 70%);
+    color:#f0c674;
+    font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.2em;
+    cursor:pointer;z-index:20;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.4;
+    transition:transform .12s,box-shadow .12s,background .2s,border-color .2s;
+    box-shadow:0 6px 22px rgba(0,0,0,.5),inset 0 -3px 8px rgba(0,0,0,.4),inset 0 2px 4px rgba(240,198,116,.1);
+    text-shadow:0 0 10px rgba(240,198,116,.4);
+    pointer-events:auto;
+    /* position set by JS based on calibrated viewport fractions */
+  }
+  .trigger:active,.trigger.held{transform:scale(.94);background:radial-gradient(circle at 35% 35%,#f0c674,#c08840 70%);color:#0a0a14;border-color:#ff9a4a;box-shadow:0 0 30px rgba(255,154,74,.6),inset 0 2px 8px rgba(0,0,0,.3);text-shadow:none}
+  .trigger.disabled{opacity:.3;pointer-events:none;filter:grayscale(.6)}
+  .trigger-hint{position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.32em;color:rgba(232,217,184,.45);text-transform:uppercase;white-space:nowrap}
+
+  .gate{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 60%,#16223a 0%,#040a16 70%);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:26px;z-index:100;padding:32px;transition:opacity .7s}
+  .gate.hidden{opacity:0;pointer-events:none}
+  .gate-title{font-family:'Fraunces',serif;font-weight:300;font-size:clamp(40px,9vw,72px);letter-spacing:-.025em;color:#e8d9b8;text-align:center;line-height:.95}
+  .gate-title em{font-style:italic;color:#f0c674;font-weight:300}
+  .gate-sub{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.32em;color:rgba(232,217,184,.4);text-transform:uppercase;text-align:center}
+  .gate-instructions{font-family:'Fraunces',serif;font-style:italic;font-weight:300;font-size:15px;color:rgba(232,217,184,.7);text-align:center;line-height:1.55;max-width:480px}
+  .gate-instructions strong{font-style:normal;font-weight:500;color:#f0c674}
+  .gate-btn{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:#0a1426;background:#f0c674;padding:18px 32px;border:none;cursor:pointer;pointer-events:auto;transition:transform .2s;font-weight:600}
+  .gate-btn:active{transform:scale(.97)}
+
+  .catch{position:fixed;inset:0;background:radial-gradient(ellipse at center,rgba(14,30,56,.94),rgba(2,6,16,.99));display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;z-index:50;opacity:0;pointer-events:none;transition:opacity .55s;padding:32px}
+  .catch.show{opacity:1;pointer-events:auto}
+  .catch-species{font-family:'Fraunces',serif;font-style:italic;font-weight:300;font-size:clamp(38px,9vw,58px);color:#f0c674;letter-spacing:-.015em;text-align:center;text-shadow:0 0 30px rgba(240,198,116,.3)}
+  .catch-stats{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.28em;color:rgba(232,217,184,.65);text-transform:uppercase;margin-top:16px;text-align:center;line-height:2.1}
+  .catch-cont{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.34em;color:rgba(232,217,184,.4);text-transform:uppercase;margin-top:30px;animation:pulse 1.7s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+
+  .flash{position:fixed;inset:0;background:#f0c674;pointer-events:none;opacity:0;z-index:40;mix-blend-mode:overlay}
+  .flash.fire{animation:hookflash .55s ease-out}
+  @keyframes hookflash{0%{opacity:0}18%{opacity:.75}100%{opacity:0}}
+
+  .vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 70% 60%,transparent 35%,rgba(2,6,16,.7) 100%);z-index:5}
+  .grain{position:fixed;inset:0;pointer-events:none;opacity:.05;z-index:6;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+  /* Debug overlay — hidden by default, toggle with 'D' or triple-tap top-left */
+  #debug{
+    display:none;
+    position:fixed;top:0;left:0;right:0;
+    background:rgba(0,0,0,.78);
+    font-family:'JetBrains Mono',monospace;font-size:10px;color:#39ff14;
+    padding:8px 12px;z-index:999;line-height:1.7;
+    border-bottom:1px solid rgba(57,255,20,.25);
+    pointer-events:none;
+  }
+  #debug.show{display:block}
+</style>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+  <div class="vignette"></div>
+  <div class="grain"></div>
+  <div class="flash" id="flash"></div>
+
+  <div class="hud">
+    <div class="hud-top">
+      <div class="compass" id="compass">
+        <div class="label">Aim</div>
+        <div class="compass-readout" id="heading">---</div>
+        <div class="compass-cardinal" id="cardinal">—</div>
+      </div>
+      <div class="status">
+        <div class="label">State</div>
+        <div class="status-state" id="state">idle</div>
+        <div class="label" style="margin-top:10px">Caught</div>
+        <div class="status-catches" id="catches">0</div>
+      </div>
+    </div>
+    <div class="hud-bot">
+      <div class="prompt" id="prompt">Press &amp; hold the trigger to cast</div>
+      <div class="ticks" id="ticks"></div>
+    </div>
+  </div>
+
+  <div class="arming-panel" id="armingPanel">
+    <div class="meter-block peak">
+      <div class="meter-block-label">Power · |a| peak</div>
+      <div class="power-bar"><div class="power-bar-fill" id="powerFill"></div><div class="power-bar-peak" id="powerPeak"></div></div>
+      <div class="meter-block-value" id="powerVal">0%</div>
+    </div>
+    <div class="meter-block">
+      <div class="meter-block-label">Direction · γ tilt</div>
+      <div class="dir-bar"><div class="dir-bar-center"></div><div class="dir-bar-marker" id="dirMarker"></div></div>
+      <div class="meter-block-value" id="dirVal">—</div>
+    </div>
+  </div>
+
+  <button class="trigger" id="trigger">
+    HOLD<br>TO<br>CAST
+    <span class="trigger-hint">right thumb</span>
+  </button>
+
+  <div id="debug"></div>
+
+  <div class="gate" id="gate">
+    <div class="gate-title">Cast<br>&amp; <em>Catch</em></div>
+    <div class="gate-sub">A motion arcade · 33rdPath</div>
+    <div class="gate-instructions">
+      Hold the phone in your hand. Press &amp; hold the amber trigger with your right thumb.<br>
+      <strong>Swing the phone forward</strong> like a fishing rod. <strong>Release</strong> at the top of the arc to cast the lure.<br>
+      Tilt to aim. Swing harder to cast farther.<br>
+      When a fish bites, <strong>drag your finger</strong> back and forth to reel it in.
+    </div>
+    <button class="gate-btn" id="start">Grant Motion · Begin</button>
+  </div>
+
+  <div class="catch" id="catch">
+    <div class="label">Landed</div>
+    <div class="catch-species" id="catchSpecies">—</div>
+    <div class="catch-stats" id="catchStats">— · —</div>
+    <div class="catch-cont">Tap to cast again</div>
+  </div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+//  v4 DERIVED CONSTANTS  (from TUNING_REPORT.md · WO-2026-0001 · 2026-05-25)
+// ─────────────────────────────────────────────────────────────────────────────
+const SETTLE_THRESHOLD    = 75;    // px/s — thumb-at-rest ceiling (p95 held noise floor × 1.2)
+const CAST_THRESHOLD      = 400;   // px/s — minimum cast velocity (abort max=268, min cast=476)
+const POWER_A_MIN         = 29.9;  // m/s² → power 0.25 (gentle cast)
+const POWER_A_MAX         = 77.9;  // m/s² → power 1.0  (hard cast)
+const AIM_GAMMA_LEFT      = 7.3;   // phone gamma° → lure left-third  (capture 06)
+const AIM_GAMMA_RIGHT     = -16.0; // phone gamma° → lure right-third (capture 07)
+const AIM_GAMMA_RANGE     = AIM_GAMMA_LEFT - AIM_GAMMA_RIGHT; // 23.3°
+const TRIGGER_FRAC_X      = 291/411; // 70.8% — calibrated thumb landing (captures 03–07 mean)
+const TRIGGER_FRAC_Y      = 658/809; // 81.3%
+const TRIGGER_FRAC_R      = 55/411;  // radius as fraction of reference width
+const REEL_TICK_THRESHOLD = 150;   // px/s — touch velocity per reel tick (capture 09)
+const REEL_MIN_GAP_MS     = 300;   // ms  — minimum between ticks (natural period ~430ms)
+const POWER_FALLBACK      = 0.5;   // power when accel unavailable
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  POWER & AIM FUNCTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+function computePower(peakAMag) {
+  // Linear fit through three calibration points:
+  // gentle(29.9→0.25), medium(46.8→0.50), hard(77.9→1.0)
+  const raw = (peakAMag - POWER_A_MIN) / (POWER_A_MAX - POWER_A_MIN) * 0.75 + 0.25;
+  return Math.max(0, Math.min(1, raw));
+}
+
+function computeAim(gamma) {
+  // 0 = left-third, 1 = right-third
+  // gamma_left=+7.3°, gamma_right=−16.0°
+  return Math.max(0, Math.min(1, (AIM_GAMMA_LEFT - gamma) / AIM_GAMMA_RANGE));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  INPUT STATE
+// ─────────────────────────────────────────────────────────────────────────────
+const Input = {
+  alpha: 0, beta: 0, gamma: 0,
+  aMag: 0,
+  hasMotion: false,
+  hasOrient: false
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  CAST CLASSIFIER (v4 — touch velocity detection + accel power + gamma aim)
+// ─────────────────────────────────────────────────────────────────────────────
+const CastClassifier = {
+  pointerId: null,
+  buf: [],            // {t:sec, x:px, y:px}  rolling 200ms window
+  peakAMag: 0,        // peak accelerometer during arming window
+  gammaAtBurst: 0,    // gamma snapped at the cast burst moment
+
+  onArmStart() {
+    this.buf = [];
+    this.peakAMag = 0;
+    this.gammaAtBurst = 0;
+  },
+
+  onMotionSample(aMag) {
+    if (aMag > this.peakAMag) this.peakAMag = aMag;
+  },
+
+  pushTouch(id, x, y) {
+    if (this.pointerId !== null && id !== this.pointerId) return;
+    const t = performance.now() / 1000;
+    this.buf.push({ t, x, y });
+    const cutoff = t - 0.2;
+    while (this.buf.length > 1 && this.buf[0].t < cutoff) this.buf.shift();
+  },
+
+  // Called every animation frame while arming. Returns {fired, power, aim} or null.
+  check() {
+    if (this.buf.length < 2) return null;
+    let maxV = 0;
+    const n = this.buf.length;
+    for (let i = 1; i < n; i++) {
+      const dt = this.buf[i].t - this.buf[i-1].t;
+      if (dt <= 0) continue;
+      const dx = this.buf[i].x - this.buf[i-1].x;
+      const dy = this.buf[i].y - this.buf[i-1].y;
+      const v = Math.sqrt(dx*dx + dy*dy) / dt;
+      if (v > maxV) maxV = v;
+    }
+    if (maxV >= CAST_THRESHOLD) {
+      this.gammaAtBurst = Input.gamma;
+      const power = Input.hasMotion ? computePower(this.peakAMag) : POWER_FALLBACK;
+      const aim   = Input.hasOrient ? computeAim(this.gammaAtBurst) : 0.5;
+      return { fired: true, power, aim, peakV: maxV, peakAMag: this.peakAMag };
+    }
+    return { fired: false, maxV, peakAMag: this.peakAMag };
+  },
+
+  // Fallback: release-based cast (trigger up without velocity burst)
+  computeReleaseCast() {
+    const power = Input.hasMotion ? computePower(this.peakAMag) : POWER_FALLBACK;
+    const aim   = Input.hasOrient ? computeAim(Input.gamma) : 0.5;
+    return { power, aim };
+  },
+
+  reset() { this.buf = []; this.peakAMag = 0; }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  REEL CLASSIFIER (v4 — touch drag, winner: 09-reel-drag)
+// ─────────────────────────────────────────────────────────────────────────────
+const ReelClassifier = {
+  lastSample: null,    // {t, x, y}
+  cooldownUntil: 0,
+
+  onPointerMove(x, y) {
+    const now = performance.now();
+    if (now < this.cooldownUntil) { this.lastSample = null; return null; }
+    if (!this.lastSample) { this.lastSample = { t: now, x, y }; return null; }
+    const dt = (now - this.lastSample.t) / 1000;
+    if (dt <= 0 || dt > 0.5) { this.lastSample = { t: now, x, y }; return null; }
+    const dx = x - this.lastSample.x;
+    const dy = y - this.lastSample.y;
+    const v = Math.sqrt(dx*dx + dy*dy) / dt;
+    this.lastSample = { t: now, x, y };
+    if (v >= REEL_TICK_THRESHOLD) {
+      this.cooldownUntil = now + REEL_MIN_GAP_MS;
+      this.lastSample = null;
+      return 'tick';
+    }
+    return null;
+  },
+
+  // Tap fallback for non-touch environments
+  onTap() {
+    const now = performance.now();
+    if (now < this.cooldownUntil) return null;
+    this.cooldownUntil = now + REEL_MIN_GAP_MS;
+    return 'tick';
+  },
+
+  reset() { this.cooldownUntil = 0; this.lastSample = null; }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  GAME STATE
+// ─────────────────────────────────────────────────────────────────────────────
+const Game = {
+  state: 'idle',
+  catches: 0,
+  triggerHeld: false,
+  lockedPower: 0,
+  lockedAim: 0.5,    // 0=left, 1=right
+  cast: { x0: 0, y0: 0, x1: 0, y1: 0, t: 0 },
+  lure: { x: 0, y: 0, depth: 0 },
+  fish: null,
+  biteTimer: 0,
+  reelTicks: 0,
+  reelIdleTimer: 0,
+  fishShadows: [],
+  ripples: [],
+  hookedJitter: 0,
+  inputMode: 'motion',    // 'motion' | 'tap'
+  debugVisible: false,
+  lastDebugTap: 0,
+  debugTapCount: 0
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  SPECIES TABLE  (unchanged from v3)
+// ─────────────────────────────────────────────────────────────────────────────
+const SPECIES = [
+  { name: 'Bluegill',        weight: [0.3, 1.4],  rarity: 0.32, fight: 0.45, hp: 8  },
+  { name: 'Largemouth Bass', weight: [1.5, 6.0],  rarity: 0.25, fight: 0.7,  hp: 12 },
+  { name: 'Northern Pike',   weight: [4, 16],     rarity: 0.16, fight: 0.85, hp: 16 },
+  { name: 'Lake Trout',      weight: [3, 20],     rarity: 0.14, fight: 0.8,  hp: 18 },
+  { name: 'Muskellunge',     weight: [10, 38],    rarity: 0.09, fight: 1.0,  hp: 22 },
+  { name: 'Sturgeon',        weight: [40, 140],   rarity: 0.04, fight: 1.0,  hp: 28 }
+];
+
+function rollFish() {
+  const r = Math.random(); let acc = 0;
+  for (const s of SPECIES) {
+    acc += s.rarity;
+    if (r < acc) {
+      const w = s.weight[0] + Math.random() * (s.weight[1] - s.weight[0]);
+      return { species: s.name, weight: w, fight: s.fight, hp: s.hp };
+    }
+  }
+  return { species: 'Bluegill', weight: 0.5, fight: 0.5, hp: 8 };
+}
+
+const BOAT = { x: 0.86, y: 0.62 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  CANVAS & RESIZE
+// ─────────────────────────────────────────────────────────────────────────────
+const cvs = document.getElementById('scene');
+const ctx = cvs.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+let TRIGGER_X = 0, TRIGGER_Y = 0, TRIGGER_R = 0;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cvs.width = W * DPR; cvs.height = H * DPR;
+  cvs.style.width = W + 'px'; cvs.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+  // Place trigger at calibrated viewport fractions
+  TRIGGER_X = W * TRIGGER_FRAC_X;
+  TRIGGER_Y = H * TRIGGER_FRAC_Y;
+  TRIGGER_R = W * TRIGGER_FRAC_R;
+
+  const btn = document.getElementById('trigger');
+  const d = TRIGGER_R * 2;
+  btn.style.width  = d + 'px';
+  btn.style.height = d + 'px';
+  btn.style.left   = (TRIGGER_X - TRIGGER_R) + 'px';
+  btn.style.top    = (TRIGGER_Y - TRIGGER_R) + 'px';
+  btn.style.right  = '';
+  btn.style.bottom = '';
+}
+window.addEventListener('resize', resize);
+resize();
+
+function bx() { return W * BOAT.x; }
+function by() { return H * BOAT.y; }
+
+// Aim x — converts aim [0,1] to canvas x position in the water
+function aimToX(aim) {
+  // Spread across the left ~75% of canvas (water area), centered on boat longitude
+  const lo = W * 0.04;
+  const hi = W * 0.72;
+  return lo + aim * (hi - lo);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  DRAWING  (visual style unchanged from v3)
+// ─────────────────────────────────────────────────────────────────────────────
+function drawWater(t) {
+  const g = ctx.createRadialGradient(bx(), by(), 0, bx(), by(), Math.max(W, H) * 1.3);
+  g.addColorStop(0,   '#284866');
+  g.addColorStop(0.35,'#16304a');
+  g.addColorStop(0.7, '#0a1a2e');
+  g.addColorStop(1,   '#03081a');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  const sg = ctx.createRadialGradient(W*0.25, H*0.3, 0, W*0.25, H*0.3, W*0.6);
+  sg.addColorStop(0,   'rgba(240,150,80,0.18)');
+  sg.addColorStop(0.5, 'rgba(240,150,80,0.06)');
+  sg.addColorStop(1,   'rgba(240,150,80,0)');
+  ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
+
+  ctx.strokeStyle = 'rgba(240,198,116,0.13)'; ctx.lineWidth = 1;
+  for (let i = 0; i < 18; i++) {
+    const seed = i * 7.31;
+    const x = (Math.sin(seed) * 0.5 + 0.5) * W * 0.95;
+    const y = (Math.cos(seed * 1.27) * 0.5 + 0.5) * H * 0.95;
+    const phase = ((t * 0.0004 + seed * 0.13) % 1);
+    const r = 5 + phase * 36;
+    ctx.globalAlpha = (1 - phase) * 0.45;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  for (const r of Game.ripples) {
+    ctx.globalAlpha = r.a;
+    ctx.strokeStyle = '#f0c674'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawBoat(t) {
+  const bob = Math.sin(t * 0.0012) * 1.5;
+  const x = bx(), y = by() + bob;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = '#020610';
+  ctx.beginPath(); ctx.ellipse(0, 0, 58, 22, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#0a1830';
+  ctx.beginPath(); ctx.ellipse(0, 0, 48, 14, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#020610'; ctx.fillRect(-10, -14, 4, 28);
+  ctx.fillStyle = '#020610';
+  ctx.beginPath(); ctx.arc(12, 0, 10, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#1a1410';
+  ctx.beginPath(); ctx.arc(18, 0, 5.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#020610';
+  ctx.beginPath(); ctx.arc(22, 0, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#020610'; ctx.lineWidth = 2.6;
+  ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-58, 0); ctx.stroke();
+  ctx.strokeStyle = 'rgba(240,198,116,0.35)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-58, 0); ctx.stroke();
+  ctx.restore();
+}
+
+function drawAim(t) {
+  const tipX = bx() - 58, tipY = by();
+  const power = Game.lockedPower;
+  const maxLen = W * 0.78;
+  const length = 40 + maxLen * power;
+
+  // v4: aim direction comes from gamma-based lockedAim (0=left, 1=right)
+  // Map aim [0,1] → angle offset from straight-left (π)
+  // left edge of water → aim angle slightly up, right → slightly down
+  const aimOffset = (Game.lockedAim - 0.5) * (Math.PI / 4);
+  const angle = Math.PI + aimOffset;
+
+  const endX = tipX + Math.cos(angle) * length;
+  const endY = tipY + Math.sin(angle) * length;
+
+  ctx.save();
+  ctx.setLineDash([7, 5]);
+  ctx.strokeStyle = `rgba(240,198,116,${0.45 + power * 0.4})`;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(tipX, tipY); ctx.lineTo(endX, endY); ctx.stroke();
+  ctx.restore();
+
+  ctx.strokeStyle = `rgba(240,198,116,${0.5 + power * 0.5})`; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.arc(endX, endY, 14, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(endX-18, endY); ctx.lineTo(endX-8, endY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(endX+8, endY); ctx.lineTo(endX+18, endY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(endX, endY-18); ctx.lineTo(endX, endY-8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(endX, endY+8); ctx.lineTo(endX, endY+18); ctx.stroke();
+
+  const glow = ctx.createRadialGradient(endX, endY, 0, endX, endY, 24);
+  glow.addColorStop(0, `rgba(240,198,116,${power * 0.4})`);
+  glow.addColorStop(1, 'rgba(240,198,116,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(endX, endY, 24, 0, Math.PI * 2); ctx.fill();
+
+  Game.cast.x0 = tipX; Game.cast.y0 = tipY;
+  Game.cast.x1 = endX; Game.cast.y1 = endY;
+}
+
+function drawCastAnim(t) {
+  const phase = Math.min(1, Game.cast.t / 0.9);
+  const x = Game.cast.x0 + (Game.cast.x1 - Game.cast.x0) * phase;
+  const y = Game.cast.y0 + (Game.cast.y1 - Game.cast.y0) * phase;
+  ctx.strokeStyle = `rgba(232,217,184,${0.5 - phase * 0.3})`; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(Game.cast.x0, Game.cast.y0); ctx.lineTo(x, y); ctx.stroke();
+  const glow = ctx.createRadialGradient(x, y, 0, x, y, 20);
+  glow.addColorStop(0, 'rgba(240,198,116,0.6)'); glow.addColorStop(1, 'rgba(240,198,116,0)');
+  ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(x, y, 20, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#f0c674'; ctx.beginPath(); ctx.arc(x, y, 4.5, 0, Math.PI*2); ctx.fill();
+}
+
+function drawLureInWater(t) {
+  const x = Game.lure.x, y = Game.lure.y;
+  const dep = Game.lure.depth;
+  ctx.fillStyle = `rgba(2,6,16,${0.3 + dep * 0.3})`;
+  ctx.beginPath(); ctx.arc(x, y, 8 + dep*18, 0, Math.PI*2); ctx.fill();
+  const intensity = 0.5 - dep * 0.25;
+  const glow = ctx.createRadialGradient(x, y, 0, x, y, 18);
+  glow.addColorStop(0, `rgba(240,198,116,${intensity})`); glow.addColorStop(1, 'rgba(240,198,116,0)');
+  ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(x, y, 18, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#f0c674'; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = 'rgba(232,217,184,0.18)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(bx()-58, by()); ctx.lineTo(x, y); ctx.stroke();
+}
+
+function drawFishShadows(t) {
+  for (const f of Game.fishShadows) {
+    ctx.save(); ctx.globalAlpha = f.a; ctx.fillStyle = '#02060e';
+    ctx.translate(f.x, f.y); ctx.rotate(f.r);
+    ctx.beginPath(); ctx.ellipse(0, 0, f.size, f.size*0.32, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-f.size, 0); ctx.lineTo(-f.size-11,-7); ctx.lineTo(-f.size-11,7); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawHookedFish(t) {
+  const x = Game.lure.x, y = Game.lure.y;
+  const sz = 16 + Game.fish.weight * 1.1;
+  ctx.save(); ctx.translate(x, y);
+  ctx.rotate(Math.sin(t * 0.02 + Game.hookedJitter) * 0.6);
+  ctx.fillStyle = '#0a1830';
+  ctx.beginPath(); ctx.ellipse(0, 0, sz, sz*0.34, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-sz,0); ctx.lineTo(-sz-14,-10); ctx.lineTo(-sz-14,10); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#f0c674';
+  ctx.beginPath(); ctx.arc(sz*0.65, -sz*0.1, 1.6, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(240,198,116,0.4)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(bx()-58, by());
+  ctx.quadraticCurveTo((bx()-58+x)/2, (by()+y)/2 - 8*Math.sin(t*0.015), x, y);
+  ctx.stroke();
+}
+
+function drawScene(t) {
+  drawWater(t);
+  if (Game.state === 'sink' || Game.state === 'wait') drawFishShadows(t);
+  drawBoat(t);
+  if (Game.state === 'arming') drawAim(t);
+  if (Game.state === 'cast')   drawCastAnim(t);
+  if (Game.state === 'sink' || Game.state === 'wait') drawLureInWater(t);
+  if (Game.state === 'hooked' || Game.state === 'reel') {
+    drawLureInWater(t);
+    drawHookedFish(t);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  DEBUG OVERLAY
+// ─────────────────────────────────────────────────────────────────────────────
+let _dbgV = 0, _dbgCooldown = 0;
+
+function updateDebug(maxV, reelCooldown) {
+  if (!Game.debugVisible) return;
+  _dbgV = maxV !== undefined ? maxV : _dbgV;
+  _dbgCooldown = reelCooldown !== undefined ? reelCooldown : _dbgCooldown;
+  const power = computePower(CastClassifier.peakAMag);
+  const aim   = computeAim(Input.gamma);
+  const rRemain = Math.max(0, (ReelClassifier.cooldownUntil - performance.now()));
+  document.getElementById('debug').innerHTML =
+    `STATE <b>${Game.state}</b>  |  ` +
+    `velPeak <b>${_dbgV.toFixed(0)}</b>px/s  CAST_THRESH <b>${CAST_THRESHOLD}</b>  |  ` +
+    `|a| <b>${Input.aMag.toFixed(2)}</b>m/s²  peakA <b>${CastClassifier.peakAMag.toFixed(2)}</b>  |  ` +
+    `γ <b>${Input.gamma.toFixed(1)}</b>°  aim <b>${(aim*100).toFixed(0)}</b>%  power <b>${(power*100).toFixed(0)}</b>%  |  ` +
+    `reelCooldown <b>${rRemain.toFixed(0)}</b>ms`;
+}
+
+function toggleDebug() {
+  Game.debugVisible = !Game.debugVisible;
+  document.getElementById('debug').classList.toggle('show', Game.debugVisible);
+}
+
+// Triple-tap top-left corner (50×80px zone) to toggle debug
+window.addEventListener('pointerdown', (e) => {
+  if (e.clientX < 50 && e.clientY < 80) {
+    const now = performance.now();
+    if (now - Game.lastDebugTap < 600) {
+      Game.debugTapCount++;
+      if (Game.debugTapCount >= 2) { toggleDebug(); Game.debugTapCount = 0; }
+    } else {
+      Game.debugTapCount = 1;
+    }
+    Game.lastDebugTap = now;
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  STATE MACHINE
+// ─────────────────────────────────────────────────────────────────────────────
+function setState(s) {
+  Game.state = s;
+  document.getElementById('state').textContent = s;
+  updateHUD();
+}
+
+function updateHUD() {
+  const p  = document.getElementById('prompt');
+  const tk = document.getElementById('ticks');
+  const ap = document.getElementById('armingPanel');
+  const tg = document.getElementById('trigger');
+
+  tk.classList.remove('show');
+  ap.classList.remove('show');
+  tg.classList.remove('disabled', 'held');
+
+  const tapMode = Game.inputMode === 'tap';
+
+  switch (Game.state) {
+    case 'idle':
+      p.textContent = tapMode
+        ? 'Hold trigger · tap charges power'
+        : 'Hold trigger · swing forward · release to cast';
+      break;
+    case 'arming':
+      p.textContent = 'Swing now — release thumb to cast';
+      ap.classList.add('show');
+      tg.classList.add('held');
+      break;
+    case 'cast':
+      p.textContent = ''; tg.classList.add('disabled'); break;
+    case 'sink':
+      p.textContent = 'Lure descending…'; tg.classList.add('disabled'); break;
+    case 'wait':
+      p.textContent = 'Hold still. Wait for the bite.'; tg.classList.add('disabled'); break;
+    case 'hooked':
+      p.textContent = 'Fish on. Drag to reel.';
+      tg.classList.add('disabled'); break;
+    case 'reel':
+      p.textContent = 'Drag back · and · forth';
+      tk.classList.add('show'); tg.classList.add('disabled'); break;
+    case 'landed':
+      p.textContent = ''; tg.classList.add('disabled'); break;
+  }
+}
+
+function startArming() {
+  if (Game.state !== 'idle') return;
+  Game.triggerHeld = true;
+  CastClassifier.onArmStart();
+  setState('arming');
+}
+
+function releaseCast() {
+  if (!Game.triggerHeld) return;
+  Game.triggerHeld = false;
+  if (Game.state !== 'arming') return;
+
+  let power, aim;
+  if (Game.inputMode === 'tap') {
+    power = POWER_FALLBACK;
+    aim = 0.5;
+  } else {
+    // Auto-fire should have caught it already; this is the "thumb-up" fallback
+    const c = CastClassifier.computeReleaseCast();
+    power = c.power;
+    aim   = c.aim;
+  }
+
+  if (power < 0.12) {
+    setState('idle');
+    flashPrompt('Not enough power · swing harder');
+    return;
+  }
+  Game.lockedPower = power;
+  Game.lockedAim   = aim;
+  startCast();
+}
+
+function fireCast(power, aim) {
+  // Called by auto-fire path (velocity burst detected while trigger held)
+  Game.triggerHeld = false;
+  Game.lockedPower = power;
+  Game.lockedAim   = aim;
+  startCast();
+}
+
+function startCast() {
+  const tipX = bx() - 58, tipY = by();
+  const aimOffset = (Game.lockedAim - 0.5) * (Math.PI / 4);
+  const angle = Math.PI + aimOffset;
+  const length = 40 + W * 0.78 * Game.lockedPower;
+  Game.cast.x0 = tipX; Game.cast.y0 = tipY;
+  Game.cast.x1 = tipX + Math.cos(angle) * length;
+  Game.cast.y1 = tipY + Math.sin(angle) * length;
+  Game.cast.t = 0;
+  setState('cast');
+}
+
+function landLure() {
+  Game.lure.x = Game.cast.x1;
+  Game.lure.y = Game.cast.y1;
+  Game.lure.depth = 0;
+  Game.ripples = [];
+  for (let i = 0; i < 3; i++) Game.ripples.push({ x: Game.lure.x, y: Game.lure.y, r: 4 + i*4, a: 0.7 });
+  setState('sink');
+}
+
+function spawnFishShadows() {
+  Game.fishShadows = [];
+  const count = 2 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < count; i++) {
+    Game.fishShadows.push({
+      x: Math.random() * W * 0.85, y: Math.random() * H,
+      r: Math.random() * Math.PI * 2,
+      size: 12 + Math.random() * 18,
+      a: 0.25 + Math.random() * 0.3,
+      vx: (Math.random() - 0.5) * 0.5,
+      vy: (Math.random() - 0.5) * 0.3
+    });
+  }
+}
+
+function startBite() {
+  Game.fish = rollFish();
+  Game.hookedJitter = Math.random() * 100;
+  setState('hooked');
+  vibrate([100, 70, 100, 70, 240]);
+  const fl = document.getElementById('flash');
+  fl.classList.remove('fire'); void fl.offsetWidth; fl.classList.add('fire');
+  setTimeout(() => {
+    if (Game.state === 'hooked') {
+      Game.reelTicks = 0; Game.reelIdleTimer = 0;
+      ReelClassifier.reset();
+      renderTicks(); setState('reel');
+    }
+  }, 850);
+}
+
+function renderTicks() {
+  const c = document.getElementById('ticks'); c.innerHTML = '';
+  const max = Game.fish ? Game.fish.hp : 12;
+  for (let i = 0; i < max; i++) {
+    const d = document.createElement('div');
+    d.className = 'tick' + (i < Game.reelTicks ? ' on' : '');
+    c.appendChild(d);
+  }
+}
+
+function reelTick() {
+  Game.reelTicks++; Game.reelIdleTimer = 0;
+  const p = Game.reelTicks / Game.fish.hp;
+  Game.lure.x = Game.cast.x1 + (bx()-58 - Game.cast.x1) * p;
+  Game.lure.y = Game.cast.y1 + (by()    - Game.cast.y1) * p;
+  renderTicks(); vibrate(38);
+  if (Game.reelTicks >= Game.fish.hp) land();
+}
+
+function land() {
+  Game.catches++;
+  document.getElementById('catches').textContent = Game.catches;
+  setState('landed');
+  vibrate([180, 70, 180, 70, 380]);
+  document.getElementById('catchSpecies').textContent = Game.fish.species;
+  document.getElementById('catchStats').textContent =
+    `${Game.fish.weight.toFixed(1)} lb · ${Math.round(Game.fish.fight*100)}% fight · ${Game.fish.hp} reels`;
+  const c = document.getElementById('catch'); c.classList.add('show');
+  c.onclick = () => {
+    c.classList.remove('show'); c.onclick = null;
+    Game.fish = null; Game.ripples = [];
+    ReelClassifier.reset();
+    setState('idle');
+  };
+}
+
+function loseFish(reason) {
+  flashPrompt(reason);
+  setTimeout(() => {
+    Game.fish = null; Game.ripples = [];
+    ReelClassifier.reset();
+    setState('idle');
+  }, 1700);
+}
+
+function flashPrompt(msg) {
+  const p = document.getElementById('prompt');
+  p.textContent = msg; p.classList.add('lost');
+  setTimeout(() => p.classList.remove('lost'), 1600);
+}
+
+function vibrate(p) { if (navigator.vibrate) { try { navigator.vibrate(p); } catch(e){} } }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  MAIN LOOP
+// ─────────────────────────────────────────────────────────────────────────────
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+
+  if (Game.state === 'arming') {
+    // v4: live-update power and aim meters from sensor data
+    const power = Input.hasMotion ? computePower(CastClassifier.peakAMag) : POWER_FALLBACK;
+    const aim   = Input.hasOrient ? computeAim(Input.gamma) : 0.5;
+    Game.lockedPower = power;
+    Game.lockedAim   = aim;
+
+    document.getElementById('powerFill').style.width = (power * 100) + '%';
+    document.getElementById('powerPeak').style.left  = (power * 100) + '%';
+    document.getElementById('powerVal').textContent  = Math.round(power * 100) + '%';
+
+    const dirPct = aim * 100;
+    document.getElementById('dirMarker').style.left = dirPct + '%';
+    document.getElementById('dirVal').textContent   = aim < 0.45 ? 'LEFT' : aim > 0.55 ? 'RIGHT' : 'STRAIGHT';
+
+    document.getElementById('heading').textContent  = aim < 0.45 ? 'LEFT' : aim > 0.55 ? 'RIGHT' : 'CTR';
+    document.getElementById('cardinal').textContent = Input.hasOrient ? Input.gamma.toFixed(1) + '°' : '—';
+
+    // Auto-fire check (velocity burst while trigger still held)
+    if (Game.triggerHeld) {
+      const result = CastClassifier.check();
+      if (result) {
+        updateDebug(result.maxV || result.peakV || 0);
+        if (result.fired) {
+          fireCast(result.power, result.aim);
+          return requestAnimationFrame(loop);
+        }
+      }
+    }
+
+  } else if (Game.state === 'cast') {
+    Game.cast.t += dt;
+    if (Game.cast.t >= 0.9) landLure();
+  } else if (Game.state === 'sink') {
+    Game.lure.depth += dt * 0.5;
+    for (const r of Game.ripples) { r.r += 30*dt; r.a *= 0.96; }
+    Game.ripples = Game.ripples.filter(r => r.a > 0.05);
+    if (Game.lure.depth >= 1.0) {
+      setState('wait');
+      Game.biteTimer = 2 + Math.random() * 5;
+      spawnFishShadows();
+    }
+  } else if (Game.state === 'wait') {
+    Game.biteTimer -= dt;
+    for (const f of Game.fishShadows) {
+      f.x += f.vx; f.y += f.vy;
+      const dx = Game.lure.x - f.x, dy = Game.lure.y - f.y;
+      f.vx += dx * 0.000025; f.vy += dy * 0.000025;
+      f.r = Math.atan2(f.vy, f.vx);
+      f.vx *= 0.995; f.vy *= 0.995;
+    }
+    if (Game.biteTimer <= 0) startBite();
+  } else if (Game.state === 'reel') {
+    Game.reelIdleTimer += dt;
+    if (Game.reelIdleTimer > 3.2) loseFish('Line went slack. Fish lost.');
+  }
+
+  if (Game.debugVisible) updateDebug();
+  ctx.clearRect(0, 0, W, H);
+  drawScene(now);
+  requestAnimationFrame(loop);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  SENSOR LISTENERS
+// ─────────────────────────────────────────────────────────────────────────────
+function onOrient(e) {
+  if (e.alpha !== null) Input.alpha = e.alpha;
+  if (e.beta  !== null) Input.beta  = e.beta;
+  if (e.gamma !== null) Input.gamma = e.gamma;
+  Input.hasOrient = true;
+}
+
+let lastMotionT = performance.now() / 1000;
+function onMotion(e) {
+  Input.hasMotion = true;
+  const a = e.acceleration;
+  const ag = e.accelerationIncludingGravity;
+  let ax = 0, ay = 0, az = 0;
+  const hasClean = a && (a.x !== null && a.x !== 0 || a.y !== null && a.y !== 0 || a.z !== null && a.z !== 0);
+  if (hasClean) {
+    ax = a.x||0; ay = a.y||0; az = a.z||0;
+  } else if (ag) {
+    // Low-pass gravity removal
+    if (!onMotion._gx) { onMotion._gx = ag.x||0; onMotion._gy = ag.y||0; onMotion._gz = ag.z||0; }
+    const A = 0.9;
+    onMotion._gx = A*onMotion._gx + (1-A)*(ag.x||0);
+    onMotion._gy = A*onMotion._gy + (1-A)*(ag.y||0);
+    onMotion._gz = A*onMotion._gz + (1-A)*(ag.z||0);
+    ax = (ag.x||0)-onMotion._gx; ay = (ag.y||0)-onMotion._gy; az = (ag.z||0)-onMotion._gz;
+  }
+  Input.aMag = Math.hypot(ax, ay, az);
+
+  // Feed cast classifier during arming
+  if (Game.state === 'arming' && Game.triggerHeld) {
+    CastClassifier.onMotionSample(Input.aMag);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  TRIGGER POINTER EVENTS  — tracks the trigger-holding pointer
+// ─────────────────────────────────────────────────────────────────────────────
+const triggerEl = document.getElementById('trigger');
+
+function onTriggerDown(e) {
+  e.preventDefault();
+  CastClassifier.pointerId = e.pointerId;
+  startArming();
+}
+
+function onTriggerUp(e) {
+  e.preventDefault();
+  if (e.pointerId !== CastClassifier.pointerId && CastClassifier.pointerId !== null) return;
+  CastClassifier.pointerId = null;
+  releaseCast();
+}
+
+triggerEl.addEventListener('pointerdown', onTriggerDown);
+window.addEventListener('pointerup',     onTriggerUp);
+window.addEventListener('pointercancel', onTriggerUp);
+
+// Track trigger pointer movement for cast classifier velocity detection
+window.addEventListener('pointermove', (e) => {
+  if (Game.state === 'arming' && e.pointerId === CastClassifier.pointerId) {
+    CastClassifier.pushTouch(e.pointerId, e.clientX, e.clientY);
+  }
+});
+window.addEventListener('pointerdown', (e) => {
+  if (Game.state === 'arming' && e.pointerId === CastClassifier.pointerId) {
+    CastClassifier.pushTouch(e.pointerId, e.clientX, e.clientY);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  REEL POINTER EVENTS  — any non-trigger pointer drag during reel state
+// ─────────────────────────────────────────────────────────────────────────────
+window.addEventListener('pointermove', (e) => {
+  if (e.target === triggerEl || triggerEl.contains(e.target)) return;
+  if (Game.state === 'reel' || Game.state === 'hooked') {
+    const tick = ReelClassifier.onPointerMove(e.clientX, e.clientY);
+    if (tick) {
+      if (Game.state === 'hooked') {
+        Game.reelTicks = 0; Game.reelIdleTimer = 0;
+        renderTicks(); setState('reel');
+      }
+      reelTick();
+    }
+  }
+});
+
+// Tap fallback for hooked/reel (when drag doesn't register, or tap-mode)
+window.addEventListener('pointerdown', (e) => {
+  if (e.target === triggerEl || triggerEl.contains(e.target)) return;
+  if (Game.inputMode === 'tap') {
+    if (Game.state === 'hooked') {
+      const tick = ReelClassifier.onTap();
+      if (tick) { Game.reelTicks = 0; Game.reelIdleTimer = 0; renderTicks(); setState('reel'); reelTick(); }
+    } else if (Game.state === 'reel') {
+      const tick = ReelClassifier.onTap();
+      if (tick) reelTick();
+    }
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  PERMISSION GATE
+// ─────────────────────────────────────────────────────────────────────────────
+async function requestPerms() {
+  let granted = true;
+  try {
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function')
+      granted = granted && (await DeviceMotionEvent.requestPermission() === 'granted');
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function')
+      granted = granted && (await DeviceOrientationEvent.requestPermission() === 'granted');
+  } catch(e) { granted = false; }
+
+  if (granted) {
+    window.addEventListener('devicemotion',      onMotion);
+    window.addEventListener('deviceorientation', onOrient);
+  }
+  document.getElementById('gate').classList.add('hidden');
+  setState('idle');
+
+  setTimeout(() => {
+    if (!Input.hasMotion) {
+      Game.inputMode = 'tap';
+      updateHUD();
+    }
+  }, 2500);
+}
+
+document.getElementById('start').addEventListener('click', requestPerms);
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  KEYBOARD (desktop testing)
+// ─────────────────────────────────────────────────────────────────────────────
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (Game.state === 'idle') { startArming(); CastClassifier.pointerId = -1; }
+    if (Game.state === 'arming') {
+      // Simulate a cast burst with medium effort
+      const synthetic = 46;
+      CastClassifier.peakAMag = synthetic;
+      Input.aMag = synthetic;
+      // Push synthetic touch velocity above threshold
+      const now = performance.now()/1000;
+      CastClassifier.buf.push({t: now - 0.03, x: 200, y: 600});
+      CastClassifier.buf.push({t: now,        x: 170, y: 585});  // → ~600 px/s burst
+    }
+  }
+  if (e.code === 'KeyR') {
+    if (Game.state === 'hooked') { Game.reelTicks=0; Game.reelIdleTimer=0; renderTicks(); setState('reel'); }
+    if (Game.state === 'reel') reelTick();
+  }
+  if (e.code === 'KeyD') toggleDebug();
+  // Arrow keys adjust aim for desktop testing
+  if (e.code === 'ArrowLeft'  && Game.state === 'arming') Input.gamma =  8;
+  if (e.code === 'ArrowRight' && Game.state === 'arming') Input.gamma = -17;
+});
+window.addEventListener('keyup', (e) => {
+  if (e.code === 'Space' && Game.triggerHeld) releaseCast();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  START
+// ─────────────────────────────────────────────────────────────────────────────
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
