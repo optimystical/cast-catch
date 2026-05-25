@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#040a16">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="screen-orientation" content="landscape">
+<title>Cast &amp; Catch v4a · 33rdPath</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,300&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+  html,body{width:100%;height:100%;overflow:hidden;background:#040a16;font-family:'Fraunces',serif;color:#e8d9b8;overscroll-behavior:none}
+  #scene{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+  .hud{position:fixed;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px) + 18px) calc(env(safe-area-inset-right,0px) + 22px) calc(env(safe-area-inset-bottom,0px) + 18px) calc(env(safe-area-inset-left,0px) + 22px);z-index:10}
+  .hud-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+  .hud-bot{display:flex;flex-direction:column;align-items:center;gap:12px;margin-right:180px}
+
+  .label{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:rgba(232,217,184,.42)}
+  .label.armed{color:#ff9a4a}
+
+  .compass{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+  .compass-readout{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:600;color:#f0c674;letter-spacing:.03em;text-shadow:0 0 18px rgba(240,198,116,.4)}
+  .compass-cardinal{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.32em;color:rgba(232,217,184,.45)}
+  .compass-delta{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.18em;color:rgba(255,154,74,.7);margin-top:4px;display:none}
+  .compass.arming .compass-delta{display:block}
+
+  .status{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+  .status-state{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.24em;color:#f0c674;text-transform:uppercase}
+  .status-catches{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:600;color:#e8d9b8}
+
+  .prompt{font-family:'Fraunces',serif;font-style:italic;font-weight:300;font-size:19px;color:rgba(232,217,184,.85);text-align:center;line-height:1.2;max-width:60%;transition:opacity .35s,color .3s;text-shadow:0 0 18px rgba(4,10,22,.9)}
+  .prompt.lost{color:#ff7a6a}
+
+  /* Arming meters — appear during arming */
+  .arming-panel{position:fixed;left:calc(env(safe-area-inset-left,0px) + 22px);top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:18px;z-index:11;opacity:0;pointer-events:none;transition:opacity .25s}
+  .arming-panel.show{opacity:1}
+  .meter-block{display:flex;flex-direction:column;gap:6px}
+  .meter-block-label{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.3em;color:rgba(232,217,184,.5);text-transform:uppercase}
+  .meter-block-value{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:600;color:#f0c674;letter-spacing:.04em}
+  .meter-block.peak .meter-block-value{color:#ff9a4a;text-shadow:0 0 12px rgba(255,154,74,.5)}
+
+  .power-bar{width:160px;height:6px;background:rgba(232,217,184,.1);position:relative;overflow:hidden}
+  .power-bar-fill{position:absolute;left:0;top:0;height:100%;background:linear-gradient(90deg,#f0c674,#ff7a3d);width:0;transition:width .05s linear;box-shadow:0 0 12px rgba(240,198,116,.7)}
+  .power-bar-peak{position:absolute;top:-3px;width:2px;height:12px;background:#ff9a4a;left:0;box-shadow:0 0 8px rgba(255,154,74,.8)}
+
+  .dir-bar{width:160px;height:6px;background:rgba(232,217,184,.1);position:relative}
+  .dir-bar-center{position:absolute;left:50%;top:-3px;width:1px;height:12px;background:rgba(232,217,184,.4);transform:translateX(-50%)}
+  .dir-bar-marker{position:absolute;left:50%;top:-4px;width:3px;height:14px;background:#f0c674;transform:translateX(-50%);transition:left .08s linear;box-shadow:0 0 8px rgba(240,198,116,.7)}
+
+  .ticks{display:flex;gap:5px;justify-content:center;flex-wrap:wrap;max-width:60%;opacity:0;transition:opacity .3s}
+  .ticks.show{opacity:1}
+  .tick{width:16px;height:2px;background:rgba(232,217,184,.16);transition:background .18s,transform .18s,box-shadow .18s}
+  .tick.on{background:#f0c674;transform:scaleY(2.5);box-shadow:0 0 10px rgba(240,198,116,.8)}
+
+  /* Trigger button — bottom-right, right thumb */
+  .trigger{position:fixed;left:calc(71% - 60px);top:calc(70% - 60px);width:120px;height:120px;border-radius:50%;border:2px solid rgba(240,198,116,.6);background:radial-gradient(circle at 35% 35%,#3a2a18,#1a1208 70%);color:#f0c674;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.2em;cursor:pointer;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.4;transition:transform .12s,box-shadow .12s,background .2s,border-color .2s;box-shadow:0 6px 22px rgba(0,0,0,.5),inset 0 -3px 8px rgba(0,0,0,.4),inset 0 2px 4px rgba(240,198,116,.1);text-shadow:0 0 10px rgba(240,198,116,.4);pointer-events:auto}
+  .trigger:active,.trigger.held{transform:scale(.94);background:radial-gradient(circle at 35% 35%,#f0c674,#c08840 70%);color:#0a0a14;border-color:#ff9a4a;box-shadow:0 0 30px rgba(255,154,74,.6),inset 0 2px 8px rgba(0,0,0,.3);text-shadow:none}
+  .trigger.disabled{opacity:.3;pointer-events:none;filter:grayscale(.6)}
+  .trigger-hint{position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.32em;color:rgba(232,217,184,.45);text-transform:uppercase;white-space:nowrap}
+
+  .gate{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 60%,#16223a 0%,#040a16 70%);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:26px;z-index:100;padding:32px;transition:opacity .7s}
+  .gate.hidden{opacity:0;pointer-events:none;transition:opacity .5s}.gate.hidden{display:none}
+  .gate-title{font-family:'Fraunces',serif;font-weight:300;font-size:clamp(40px,9vw,72px);letter-spacing:-.025em;color:#e8d9b8;text-align:center;line-height:.95}
+  .gate-title em{font-style:italic;color:#f0c674;font-weight:300}
+  .gate-sub{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.32em;color:rgba(232,217,184,.4);text-transform:uppercase;text-align:center}
+  .gate-instructions{font-family:'Fraunces',serif;font-style:italic;font-weight:300;font-size:15px;color:rgba(232,217,184,.7);text-align:center;line-height:1.55;max-width:480px}
+  .gate-instructions strong{font-style:normal;font-weight:500;color:#f0c674}
+  .gate-btn{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:#0a1426;background:#f0c674;padding:18px 32px;border:none;cursor:pointer;pointer-events:auto;transition:transform .2s;font-weight:600}
+  .gate-btn:active{transform:scale(.97)}
+
+  .catch{position:fixed;inset:0;background:radial-gradient(ellipse at center,rgba(14,30,56,.94),rgba(2,6,16,.99));display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;z-index:50;opacity:0;pointer-events:none;transition:opacity .55s;padding:32px}
+  .catch.show{opacity:1;pointer-events:auto}
+  .catch-species{font-family:'Fraunces',serif;font-style:italic;font-weight:300;font-size:clamp(38px,9vw,58px);color:#f0c674;letter-spacing:-.015em;text-align:center;text-shadow:0 0 30px rgba(240,198,116,.3)}
+  .catch-stats{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.28em;color:rgba(232,217,184,.65);text-transform:uppercase;margin-top:16px;text-align:center;line-height:2.1}
+  .catch-cont{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.34em;color:rgba(232,217,184,.4);text-transform:uppercase;margin-top:30px;animation:pulse 1.7s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+
+  .flash{position:fixed;inset:0;background:#f0c674;pointer-events:none;opacity:0;z-index:40;mix-blend-mode:overlay}
+  .flash.fire{animation:hookflash .55s ease-out}
+  @keyframes hookflash{0%{opacity:0}18%{opacity:.75}100%{opacity:0}}
+
+  .vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 70% 60%,transparent 35%,rgba(2,6,16,.7) 100%);z-index:5}
+  .grain{position:fixed;inset:0;pointer-events:none;opacity:.05;z-index:6;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+  .rotate-hint{position:fixed;inset:0;background:#040a16;display:none;flex-direction:column;justify-content:center;align-items:center;gap:20px;z-index:200;padding:24px;text-align:center}
+  .rotate-hint.show{display:flex}
+  .rotate-icon{font-size:50px;color:#f0c674;animation:rotate 2s ease-in-out infinite}
+  @keyframes rotate{0%,100%{transform:rotate(0)}50%{transform:rotate(-90deg)}}
+  .rotate-text{font-family:'Fraunces',serif;font-style:italic;font-size:20px;color:#e8d9b8}
+  .rotate-sub{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.3em;color:rgba(232,217,184,.5);text-transform:uppercase}
+
+  /* v4 debug overlay */
+  #dbg{position:fixed;top:calc(env(safe-area-inset-top,0px)+8px);left:50%;transform:translateX(-50%);
+  background:rgba(2,6,16,.82);border:1px solid rgba(240,198,116,.25);padding:7px 14px;
+  font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.15em;color:rgba(240,198,116,.8);
+  white-space:pre;z-index:99;display:none;pointer-events:none;line-height:1.7}
+  #dbgToggle{position:fixed;top:calc(env(safe-area-inset-top,0px)+8px);right:calc(env(safe-area-inset-right,0px)+8px);
+  z-index:100;background:rgba(240,198,116,.08);border:1px solid rgba(240,198,116,.2);
+  color:rgba(240,198,116,.5);font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.2em;
+  padding:4px 8px;cursor:pointer;pointer-events:auto}
+
+  /* ── Video layer ──────────────────────────────────────────────────── */
+  #bgVideo{
+    position:fixed;inset:0;width:100%;height:100%;
+    object-fit:cover;z-index:1;opacity:.55;
+    filter:saturate(1.1);pointer-events:none;
+  }
+  #cutawayVideo{
+    position:fixed;inset:0;width:100%;height:100%;
+    object-fit:cover;z-index:300;opacity:0;
+    pointer-events:none;transition:opacity .35s;
+  }
+  #cutawayVideo.active{ opacity:1; pointer-events:auto; }
+
+  /* ── Simulator overlay (only active when ?sim in URL) ─── */
+  #simBar{
+    display:none;position:fixed;bottom:0;left:0;right:0;
+    background:rgba(4,10,22,.92);border-top:1px solid rgba(240,198,116,.25);
+    padding:10px 8px 10px;z-index:999;
+    display:none;flex-wrap:wrap;gap:6px;justify-content:center;
+    pointer-events:auto;
+  }
+  #simBar.on{ display:flex; }
+  .sim-btn{
+    font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.18em;
+    padding:5px 10px;border:1px solid rgba(240,198,116,.3);
+    background:transparent;color:rgba(240,198,116,.6);cursor:pointer;
+  }
+  .sim-btn:active,.sim-btn.active{
+    background:rgba(240,198,116,.15);color:#f0c674;
+    border-color:rgba(240,198,116,.7);
+  }
+  #simLabel{
+    position:fixed;top:calc(env(safe-area-inset-top,0px)+44px);left:50%;
+    transform:translateX(-50%);font-family:'JetBrains Mono',monospace;
+    font-size:9px;letter-spacing:.22em;color:rgba(240,198,116,.45);
+    z-index:998;pointer-events:none;display:none;
+  }
+  #simLabel.on{ display:block; }
+</style>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+  <!-- Simulator bar — visible only when ?sim in URL -->
+  <div id="simLabel">SIM MODE</div>
+  <div id="simBar">
+    <button class="sim-btn active" onclick="simState('idle')">IDLE</button>
+    <button class="sim-btn" onclick="simState('arming')">ARMING</button>
+    <button class="sim-btn" onclick="simState('cast')">CAST</button>
+    <button class="sim-btn" onclick="simState('sink')">SINK</button>
+    <button class="sim-btn" onclick="simState('wait')">WAIT</button>
+    <button class="sim-btn" onclick="simState('hooked')">HOOKED</button>
+    <button class="sim-btn" onclick="simState('reel')">REEL</button>
+    <button class="sim-btn" onclick="simState('landed')">LANDED</button>
+    <button class="sim-btn" style="border-color:rgba(76,255,176,.3);color:rgba(76,255,176,.5)"
+      onclick="triggerCutaway('splash',900)">✦ SPLASH</button>
+    <button class="sim-btn" style="border-color:rgba(76,255,176,.3);color:rgba(76,255,176,.5)"
+      onclick="triggerCutaway('strike',750)">✦ STRIKE</button>
+    <button class="sim-btn" style="border-color:rgba(76,255,176,.3);color:rgba(76,255,176,.5)"
+      onclick="triggerCutaway('breach',1200)">✦ BREACH</button>
+    <button class="sim-btn" style="border-color:rgba(76,255,176,.3);color:rgba(76,255,176,.5)"
+      onclick="spawnTrophyParticles();triggerCutaway('trophy',2800)">✦ TROPHY</button>
+  </div>
+
+  <!-- ── Video layer (behind canvas) ─────────────────────────────── -->
+  <!-- Drop generated .mp4 files into assets/ folder alongside this HTML -->
+  <!-- Game works fine without them — canvas renders as fallback       -->
+  <video id="bgVideo"      autoplay loop muted playsinline></video>
+  <video id="cutawayVideo" muted playsinline></video>
+  <pre id="dbg">— loading —</pre>
+  <button id="dbgToggle">DBG</button>
+  <div class="vignette"></div>
+  <div class="grain"></div>
+  <div class="flash" id="flash"></div>
+
+  <div class="hud">
+    <div class="hud-top">
+      <div class="compass" id="compass">
+        <div class="label">Heading</div>
+        <div class="compass-readout" id="heading">---°</div>
+        <div class="compass-cardinal" id="cardinal">—</div>
+        <div class="compass-delta" id="delta">Δ —</div>
+      </div>
+      <div class="status">
+        <div class="label">State</div>
+        <div class="status-state" id="state">idle</div>
+        <div class="label" style="margin-top:10px">Caught</div>
+        <div class="status-catches" id="catches">0</div>
+      </div>
+    </div>
+    <div class="hud-bot">
+      <div class="prompt" id="prompt">Press &amp; hold the trigger to cast</div>
+      <div class="ticks" id="ticks"></div>
+    </div>
+  </div>
+
+  <div class="arming-panel" id="armingPanel">
+    <div class="meter-block peak">
+      <div class="meter-block-label">Power · Distance</div>
+      <div class="power-bar"><div class="power-bar-fill" id="powerFill"></div><div class="power-bar-peak" id="powerPeak"></div></div>
+      <div class="meter-block-value" id="powerVal">0%</div>
+    </div>
+    <div class="meter-block">
+      <div class="meter-block-label">Compass · Direction</div>
+      <div class="dir-bar"><div class="dir-bar-center"></div><div class="dir-bar-marker" id="dirMarker"></div></div>
+      <div class="meter-block-value" id="dirVal">0°</div>
+    </div>
+  </div>
+
+  <button class="trigger" id="trigger">
+    HOLD<br>TO<br>CAST
+    <span class="trigger-hint">right thumb</span>
+  </button>
+
+  <div class="gate" id="gate">
+    <div class="gate-title">Cast<br>&amp; <em>Catch</em></div>
+    <div class="gate-sub">A motion arcade · 33rdPath</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.28em;color:rgba(240,198,116,.35);margin-top:-8px">v4a · calibrated</div>
+    <div class="gate-instructions">
+      Hold the phone <strong>portrait</strong> like a fishing rod — screen facing you.<br>
+      <strong>Press &amp; hold</strong> the amber trigger (lower-right area). Pull back, swing forward. <strong>Release</strong> at the top of the arc.<br>
+      The harder the swing, the farther the lure flies.
+    </div>
+    <button class="gate-btn" id="start">Grant Motion · Begin</button>
+  </div>
+
+  <div class="catch" id="catch">
+    <div class="label">Landed</div>
+    <div class="catch-species" id="catchSpecies">—</div>
+    <div class="catch-stats" id="catchStats">— · —</div>
+    <div class="catch-cont">Tap to cast again</div>
+  </div>
+
+
+
+<script>
+// ─── v4a TUNED CONSTANTS ────────────────────────────────────────────────────
+// All values derived from WO-2026-0001 12-capture calibration protocol.
+// Device: Pixel 6 · Android 16 · Chrome 148 · right hand · portrait
+
+// Cast classifier
+const SETTLE_THRESHOLD = 11;    // px/s  – ceil(p95_held_noise × 1.20)
+const CAST_MIN_SPEED   = 250;   // px/s  – above abort capture max (198 px/s)
+const CAST_WINDOW_MS   = 50;    // ms    – release-burst detection window
+const POWER_FLOOR_A    = 0.374; // m/s²  – p95 held-noise accel
+const POWER_MAX_A      = 77.89; // m/s²  – peak from hard cast (capture 05)
+const POWER_MIN        = 0.12;  // normalized – reject underpowered releases
+
+// Trigger placement (normalized screen, averaged across casts 03–07)
+const TRIGGER_X_NORM   = 0.71;
+const TRIGGER_Y_NORM   = 0.81;
+
+// Direction via gamma (phone tilt, more reliable than compass in sandbox)
+const DIR_GAMMA_RANGE  = 22;    // degrees per unit of normalized aim
+
+// Reel: pulse-tap detection (capture 11, median 356 ms between taps)
+const REEL_MIN_GAP_MS  = 250;   // ms – conservative floor, allows fast reeling
+
+// ── Video asset map ──────────────────────────────────────────────────────────
+// Generate these with the prompts in prompts/VIDEO_PROMPTS.md, then place the
+// .mp4 files in an assets/ folder next to this HTML file.
+// Game falls back to canvas-only if any file is missing — no action needed.
+const VIDEO = {
+  bg: {
+    idle:  'assets/lake-dawn-loop.mp4',
+    idle2: 'assets/boat-topdown-loop.mp4',
+    sink:  'assets/underwater-descent-loop.mp4',
+    wait:  'assets/underwater-descent-loop.mp4',
+  },
+  cut: {
+    splash:   'assets/cast-splash.mp4',       // cast → sink
+    approach: 'assets/fish-approach.mp4',     // wait → hooked
+    strike:   'assets/hook-strike-flash.mp4', // bite moment
+    breach:   'assets/fish-breach.mp4',       // reel → landed
+    trophy:   'assets/trophy-lift.mp4',       // landed
+  }
+};
+
+const _bgEl  = () => document.getElementById('bgVideo');
+const _cutEl = () => document.getElementById('cutawayVideo');
+
+// Set the looping background video for a given game state
+function setBgVideo(src) {
+  const v = _bgEl();
+  if (!v || !src) return;
+  if (v.getAttribute('src') === src) return;
+  v.src = src;
+  v.load();
+  v.play().catch(() => {});       // silent if file missing
+}
+
+// Play a one-shot cutaway, pause game loop during it, resume on end/error
+let _cutawayActive = false;
+function playCutaway(src, onDone) {
+  if (!src || _cutawayActive) { if (onDone) onDone(); return; }
+  const v = _cutEl();
+  if (!v) { if (onDone) onDone(); return; }
+  _cutawayActive = true;
+  v.src = src; v.load();
+  const finish = () => {
+    _cutawayActive = false;
+    v.classList.remove('active');
+    v.src = '';
+    if (onDone) onDone();
+  };
+  v.onended  = finish;
+  v.onerror  = finish;           // silent if file missing
+  v.play()
+    .then(() => v.classList.add('active'))
+    .catch(finish);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+
+// cast-and-catch.html · v4a · Built against WO-2026-0001 calibration data
+// Variation 1: 12 canonical captures · 07-aimrightV2 is canonical
+
+const Input = {
+  alpha: 0, beta: 0, gamma: 0,
+  aax: 0, aay: 0, aaz: 0, aMag: 0,
+  alphaCalibration: 0,
+  gammaCalibration: 0,
+  calibrated: false,
+  headingDelta() {
+    let d = this.alpha - this.alphaCalibration;
+    if (d > 180) d -= 360;
+    if (d < -180) d += 360;
+    return d;
+  },
+  gammaDelta() {
+    // Negative = tilted right (aim right); Positive = tilted left (aim left)
+    return this.gamma - this.gammaCalibration;
+  }
+};
+
+// Reel: pulse-tap detection (capture 11 – pointerdown events, min 250ms gap)
+// Also accepts accel burst as fallback when touch is absent (capture 12 shake)
+const ReelClassifier = {
+  lastTap: 0,
+  cooldown: 0,
+  ACCEL_THRESH: 6.0,   // m/s² fallback threshold (above noise, below cast)
+  ACCEL_GAP: 0.25,     // s, accel-burst cooldown
+  // Call this on every screen tap NOT on the trigger button
+  onTap(t) {
+    if (t - this.lastTap > REEL_MIN_GAP_MS / 1000) {
+      this.lastTap = t;
+      return 'tick';
+    }
+    return null;
+  },
+  // Fallback: motion burst (shake gesture, capture 12)
+  update(sample, dt) {
+    this.cooldown = Math.max(0, this.cooldown - dt);
+    if (this.cooldown > 0) return null;
+    if (sample.aMag > this.ACCEL_THRESH) {
+      this.cooldown = this.ACCEL_GAP;
+      return 'tick';
+    }
+    return null;
+  },
+  reset() { this.lastTap = 0; this.cooldown = 0.3; }
+};
+
+const Game = {
+  state: 'idle',
+  catches: 0,
+  triggerHeld: false,
+  armingPeak: 0,
+  armingHoldTime: 0,
+  armingTapPower: 0,  // for tap fallback
+  armingGammaSum: 0, armingGammaCount: 0,  // for direction via gamma
+  lockedHeading: 0,
+  lockedPower: 0,
+  cast: { x0: 0, y0: 0, x1: 0, y1: 0, t: 0 },
+  lure: { x: 0, y: 0, depth: 0 },
+  fish: null, fishX: 0, fishY: 0,
+  biteTimer: 0,
+  reelTicks: 0, reelIdleTimer: 0,
+  fishShadows: [],
+  ripples: [],
+  inputMode: 'motion',
+  hookedJitter: 0
+};
+
+const SPECIES = [
+  { name: 'Bluegill',        weight: [0.3, 1.4],  rarity: 0.32, fight: 0.45, hp: 8  },
+  { name: 'Largemouth Bass', weight: [1.5, 6.0],  rarity: 0.25, fight: 0.7,  hp: 12 },
+  { name: 'Northern Pike',   weight: [4, 16],     rarity: 0.16, fight: 0.85, hp: 16 },
+  { name: 'Lake Trout',      weight: [3, 20],     rarity: 0.14, fight: 0.8,  hp: 18 },
+  { name: 'Muskellunge',     weight: [10, 38],    rarity: 0.09, fight: 1.0,  hp: 22 },
+  { name: 'Sturgeon',        weight: [40, 140],   rarity: 0.04, fight: 1.0,  hp: 28 }
+];
+
+function rollFish() {
+  const r = Math.random(); let acc = 0;
+  for (const s of SPECIES) {
+    acc += s.rarity;
+    if (r < acc) {
+      const w = s.weight[0] + Math.random() * (s.weight[1] - s.weight[0]);
+      return { species: s.name, weight: w, fight: s.fight, hp: s.hp };
+    }
+  }
+  return { species: 'Bluegill', weight: 0.5, fight: 0.5, hp: 8 };
+}
+
+const BOAT = { x: 0.86, y: 0.62 };  // normalized screen coords for boat anchor
+
+const cvs = document.getElementById('scene');
+const ctx = cvs.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cvs.width = W * DPR; cvs.height = H * DPR;
+  cvs.style.width = W + 'px'; cvs.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  checkOrientation();
+}
+function checkOrientation() {
+  // v4: portrait-native — rotate hint removed
+}
+window.addEventListener('resize', resize);
+resize();
+
+function bx() { return W * BOAT.x; }
+function by() { return H * BOAT.y; }
+
+function drawWater(t) {
+  // Deep top-down water — radial gradient from boat outward
+  const g = ctx.createRadialGradient(bx(), by(), 0, bx(), by(), Math.max(W, H) * 1.3);
+  g.addColorStop(0,   '#284866');
+  g.addColorStop(0.35,'#16304a');
+  g.addColorStop(0.7, '#0a1a2e');
+  g.addColorStop(1,   '#03081a');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  // Sun glint off the surface, low and warm
+  const sg = ctx.createRadialGradient(W * 0.25, H * 0.3, 0, W * 0.25, H * 0.3, W * 0.6);
+  sg.addColorStop(0,   'rgba(240,150,80,0.18)');
+  sg.addColorStop(0.5, 'rgba(240,150,80,0.06)');
+  sg.addColorStop(1,   'rgba(240,150,80,0)');
+  ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
+
+  // Animated surface ripples
+  ctx.strokeStyle = 'rgba(240,198,116,0.13)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 18; i++) {
+    const seed = i * 7.31;
+    const x = (Math.sin(seed) * 0.5 + 0.5) * W * 0.95;
+    const y = (Math.cos(seed * 1.27) * 0.5 + 0.5) * H * 0.95;
+    const phase = ((t * 0.0004 + seed * 0.13) % 1);
+    const r = 5 + phase * 36;
+    ctx.globalAlpha = (1 - phase) * 0.45;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Persistent ripples from lure splash
+  for (const r of Game.ripples) {
+    ctx.globalAlpha = r.a;
+    ctx.strokeStyle = '#f0c674';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawBoat(t) {
+  const bob = Math.sin(t * 0.0012) * 1.5;
+  const x = bx(), y = by() + bob;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(-Math.PI / 2);  // boat oriented with bow pointing left (-y after rotation)
+
+  // Hull
+  ctx.fillStyle = '#020610';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 58, 22, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Hull interior shadow
+  ctx.fillStyle = '#0a1830';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 48, 14, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Bench
+  ctx.fillStyle = '#020610';
+  ctx.fillRect(-10, -14, 4, 28);
+
+  // Fisherman (top-down: shoulders + hat)
+  ctx.fillStyle = '#020610';
+  ctx.beginPath(); ctx.arc(12, 0, 10, 0, Math.PI * 2); ctx.fill();    // shoulders
+  ctx.fillStyle = '#1a1410';
+  ctx.beginPath(); ctx.arc(18, 0, 5.5, 0, Math.PI * 2); ctx.fill();   // hat top
+  ctx.fillStyle = '#020610';
+  ctx.beginPath(); ctx.arc(22, 0, 3, 0, Math.PI * 2); ctx.fill();     // brim front
+
+  // Rod extending forward (toward -y after the rotation, which is left of screen)
+  ctx.strokeStyle = '#020610';
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.moveTo(8, 0);
+  ctx.lineTo(-58, 0);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(240,198,116,0.35)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(8, 0);
+  ctx.lineTo(-58, 0);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// Aim line during arming — extends from rod tip in the compass direction
+function drawAim(t) {
+  // Rod tip in world coords. Boat is rotated -π/2, rod extends to (-58, 0) in local.
+  // Rotated by -π/2, local (-58,0) → world (0, -58)? Wait, rotation -π/2 maps (lx, ly) → (ly, -lx). So local (-58, 0) → world (0, 58). Hmm.
+  // Easier: just compute rod tip directly.
+  const tipX = bx() - 58;  // rod tip is 58px to the left of the boat
+  const tipY = by();
+
+  const rawP3 = Math.max(0,(Game.armingPeak - POWER_FLOOR_A)/(POWER_MAX_A - POWER_FLOOR_A));
+  const power = Game.inputMode === 'tap' ? 0 : Math.min(1, rawP3);
+  const maxLen = W * 0.78;
+  const length = 40 + maxLen * power;
+
+  // Direction: base angle is π (pointing left). Heading delta rotates it.
+  // CW heading change = aim rotates downward on screen (CW); we want intuitive: rotate phone right → aim swings down? or up?
+  // Choose: rotating phone clockwise (heading +) → aim swings clockwise on screen → downward on screen.
+  // v4a: gamma-based direction
+  const gDelta = (Input.gamma||0) - Input.gammaCalibration;
+  const gammaHeading = -(gDelta / DIR_GAMMA_RANGE) * 90;
+  const headingRad = (gammaHeading / 90) * (Math.PI / 3);
+  const angle = Math.PI + headingRad;
+
+  const endX = tipX + Math.cos(angle) * length;
+  const endY = tipY + Math.sin(angle) * length;
+
+  // Aim arc — dashed
+  ctx.save();
+  ctx.setLineDash([7, 5]);
+  ctx.strokeStyle = `rgba(240,198,116,${0.45 + power * 0.4})`;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(tipX, tipY);
+  ctx.lineTo(endX, endY);
+  ctx.stroke();
+  ctx.restore();
+
+  // Target crosshair
+  ctx.strokeStyle = `rgba(240,198,116,${0.5 + power * 0.5})`;
+  ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.arc(endX, endY, 14, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(endX - 18, endY); ctx.lineTo(endX - 8, endY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(endX + 8, endY); ctx.lineTo(endX + 18, endY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(endX, endY - 18); ctx.lineTo(endX, endY - 8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(endX, endY + 8); ctx.lineTo(endX, endY + 18); ctx.stroke();
+
+  // Target glow
+  const glow = ctx.createRadialGradient(endX, endY, 0, endX, endY, 24);
+  glow.addColorStop(0, `rgba(240,198,116,${power * 0.4})`);
+  glow.addColorStop(1, 'rgba(240,198,116,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(endX, endY, 24, 0, Math.PI * 2); ctx.fill();
+
+  // Cache for cast animation
+  Game.cast.x0 = tipX; Game.cast.y0 = tipY;
+  Game.cast.x1 = endX; Game.cast.y1 = endY;
+}
+
+function drawCastAnim(t) {
+  const phase = Math.min(1, Game.cast.t / 0.9);
+  const x = Game.cast.x0 + (Game.cast.x1 - Game.cast.x0) * phase;
+  const y = Game.cast.y0 + (Game.cast.y1 - Game.cast.y0) * phase;
+
+  // Trail line
+  ctx.strokeStyle = `rgba(232,217,184,${0.5 - phase * 0.3})`;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(Game.cast.x0, Game.cast.y0);
+  ctx.lineTo(x, y);
+  ctx.stroke();
+
+  // Lure with glow
+  const glow = ctx.createRadialGradient(x, y, 0, x, y, 20);
+  glow.addColorStop(0, 'rgba(240,198,116,0.6)');
+  glow.addColorStop(1, 'rgba(240,198,116,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(x, y, 20, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#f0c674';
+  ctx.beginPath(); ctx.arc(x, y, 4.5, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawLureInWater(t) {
+  const x = Game.lure.x, y = Game.lure.y;
+  // Depth indicator: darker halo as it sinks
+  const dep = Game.lure.depth;
+  const darkR = 8 + dep * 18;
+  ctx.fillStyle = `rgba(2,6,16,${0.3 + dep * 0.3})`;
+  ctx.beginPath(); ctx.arc(x, y, darkR, 0, Math.PI * 2); ctx.fill();
+
+  // Lure glow (weaker at depth)
+  const intensity = 0.5 - dep * 0.25;
+  const glow = ctx.createRadialGradient(x, y, 0, x, y, 18);
+  glow.addColorStop(0, `rgba(240,198,116,${intensity})`);
+  glow.addColorStop(1, 'rgba(240,198,116,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(x, y, 18, 0, Math.PI * 2); ctx.fill();
+
+  // Lure dot
+  ctx.fillStyle = '#f0c674';
+  ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill();
+
+  // Line from boat to lure (subtle)
+  ctx.strokeStyle = 'rgba(232,217,184,0.18)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(bx() - 58, by());
+  ctx.lineTo(x, y);
+  ctx.stroke();
+}
+
+function drawFishShadows(t) {
+  for (const f of Game.fishShadows) {
+    ctx.save();
+    ctx.globalAlpha = f.a;
+    ctx.fillStyle = '#02060e';
+    ctx.translate(f.x, f.y);
+    ctx.rotate(f.r);
+    ctx.beginPath(); ctx.ellipse(0, 0, f.size, f.size * 0.32, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-f.size, 0);
+    ctx.lineTo(-f.size - 11, -7);
+    ctx.lineTo(-f.size - 11, 7);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawHookedFish(t) {
+  const x = Game.lure.x, y = Game.lure.y;
+  const sz = 16 + Game.fish.weight * 1.1;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(Math.sin(t * 0.02 + Game.hookedJitter) * 0.6);
+  ctx.fillStyle = '#0a1830';
+  ctx.beginPath(); ctx.ellipse(0, 0, sz, sz * 0.34, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(-sz, 0);
+  ctx.lineTo(-sz - 14, -10);
+  ctx.lineTo(-sz - 14, 10);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#f0c674';
+  ctx.beginPath(); ctx.arc(sz * 0.65, -sz * 0.1, 1.6, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+
+  // Line from boat
+  ctx.strokeStyle = 'rgba(240,198,116,0.4)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(bx() - 58, by());
+  ctx.quadraticCurveTo((bx() - 58 + x) / 2, (by() + y) / 2 - 8 * Math.sin(t * 0.015), x, y);
+  ctx.stroke();
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ATMOSPHERE ENGINE — canvas-native ambient visuals for all 8 game states
+// ═══════════════════════════════════════════════════════════════════════════
+
+const Atmo = {
+  mist:      [],
+  birds:     [],
+  bubbles:   [],
+  particles: [],
+};
+
+// Initialise once at game start
+function initAtmo() {
+  Atmo.mist = [];
+  for (let i = 0; i < 14; i++) {
+    Atmo.mist.push({
+      x:     Math.random() * 1.4 - 0.2,
+      y:     Math.random() * 0.65 + 0.05,
+      w:     Math.random() * 0.28 + 0.09,
+      speed: (Math.random() * 0.0025 + 0.0008) * (Math.random() < 0.5 ? 1 : -1),
+      op:    Math.random() * 0.13 + 0.04,
+    });
+  }
+  Atmo.birds = [];
+  for (let i = 0; i < 4; i++) {
+    Atmo.birds.push({
+      x: Math.random(), y: Math.random() * 0.28 + 0.04,
+      speed: Math.random() * 0.00007 + 0.00004,
+      sz:    Math.random() * 3 + 2,
+      flap:  Math.random() * Math.PI * 2,
+      fspd:  Math.random() * 2.5 + 1.8,
+    });
+  }
+}
+
+// Called every frame from the game loop
+function updateAtmo(dt) {
+  // Mist drift
+  for (const m of Atmo.mist) {
+    m.x += m.speed * dt;
+    if (m.x > 1.35)  m.x = -0.35;
+    if (m.x < -0.35) m.x =  1.35;
+  }
+  // Bird fly-by
+  for (const b of Atmo.birds) {
+    b.x     += b.speed * 60 * dt;
+    b.flap  += b.fspd * dt;
+    if (b.x > 1.25) b.x = -0.25;
+  }
+  // Bubbles age & float upward
+  for (const b of Atmo.bubbles) {
+    b.y   -= b.speed * dt;
+    b.x   += Math.sin(b.phase + b.y * 8) * 0.15 * dt;
+    b.life -= dt;
+  }
+  Atmo.bubbles = Atmo.bubbles.filter(b => b.life > 0);
+
+  // Spawn bubbles while lure is under water
+  if ((Game.state === 'sink' || Game.state === 'wait') && Math.random() < 0.35) {
+    const lx = (Game.lure ? Game.lure.x : W * 0.42) / W;
+    const ly = (Game.lure ? Game.lure.y : H * 0.42) / H;
+    Atmo.bubbles.push({
+      x: lx + (Math.random() - 0.5) * 0.025,
+      y: ly + (Math.random() - 0.5) * 0.025,
+      r: Math.random() * 2 + 0.7,
+      speed: Math.random() * 0.055 + 0.022,
+      phase: Math.random() * Math.PI * 2,
+      life:  Math.random() * 2.2 + 0.8,
+      op:    Math.random() * 0.45 + 0.12,
+    });
+  }
+  // Trophy particles (gravity)
+  for (const p of Atmo.particles) {
+    p.x  += p.vx * dt;
+    p.y  += p.vy * dt;
+    p.vy += 260 * dt;
+    p.life -= dt;
+  }
+  Atmo.particles = Atmo.particles.filter(p => p.life > 0);
+}
+
+// ── PER-STATE DRAW LAYERS ────────────────────────────────────────────────────
+
+function drawDawnAtmosphere(t) {
+  if (Game.state !== 'idle' && Game.state !== 'arming') return;
+  ctx.save();
+
+  // Warm sky bloom at top
+  const sky = ctx.createLinearGradient(0, 0, 0, H * 0.45);
+  sky.addColorStop(0,   'rgba(240,120,50,0.14)');
+  sky.addColorStop(0.55,'rgba(240,198,116,0.06)');
+  sky.addColorStop(1,   'rgba(0,0,0,0)');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+
+  // Diagonal light shafts
+  for (let i = 0; i < 5; i++) {
+    const x0  = W * (0.05 + i * 0.09);
+    const osc = 0.035 + Math.sin(t * 0.00045 + i * 1.1) * 0.012;
+    const sh  = ctx.createLinearGradient(x0, 0, x0 + W * 0.07, H * 0.9);
+    sh.addColorStop(0,   `rgba(240,198,116,${osc})`);
+    sh.addColorStop(0.6, `rgba(200,160,80,${osc * 0.3})`);
+    sh.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.fillStyle = sh;
+    ctx.beginPath();
+    ctx.moveTo(x0 - 8, 0);
+    ctx.lineTo(x0 + 14 + i * 2, 0);
+    ctx.lineTo(x0 + W * 0.09 + 14, H * 0.9);
+    ctx.lineTo(x0 - 8, H * 0.9);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Mist wisps
+  for (const m of Atmo.mist) {
+    const x = m.x * W, y = m.y * H, w = m.w * W;
+    const mg = ctx.createRadialGradient(x + w/2, y, 0, x + w/2, y, w * 0.55);
+    mg.addColorStop(0, `rgba(170,210,245,${m.op})`);
+    mg.addColorStop(1, 'rgba(170,210,245,0)');
+    ctx.fillStyle = mg;
+    ctx.beginPath();
+    ctx.ellipse(x + w/2, y, w * 0.55, w * 0.09, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Bird silhouettes
+  ctx.strokeStyle = 'rgba(2,6,16,0.55)';
+  ctx.lineWidth   = 1;
+  for (const b of Atmo.birds) {
+    const bx2 = b.x * W, by2 = b.y * H;
+    const fy  = Math.sin(b.flap) * b.sz * 0.55;
+    ctx.beginPath();
+    ctx.moveTo(bx2, by2);
+    ctx.quadraticCurveTo(bx2 - b.sz * 1.4, by2 - fy, bx2 - b.sz * 2.8, by2);
+    ctx.moveTo(bx2, by2);
+    ctx.quadraticCurveTo(bx2 + b.sz * 1.4, by2 - fy, bx2 + b.sz * 2.8, by2);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawUnderwaterAtmosphere(t) {
+  if (Game.state !== 'sink' && Game.state !== 'wait') return;
+  ctx.save();
+
+  // Depth tint overlay
+  const dep = ctx.createLinearGradient(0, 0, 0, H);
+  dep.addColorStop(0, 'rgba(0,35,75,0.28)');
+  dep.addColorStop(1, 'rgba(0,8,28,0.42)');
+  ctx.fillStyle = dep; ctx.fillRect(0, 0, W, H);
+
+  // Underwater light columns
+  for (let i = 0; i < 3; i++) {
+    const x0  = W * (0.18 + i * 0.32);
+    const osc = 0.055 + Math.sin(t * 0.00038 + i * 1.4) * 0.018;
+    const ug  = ctx.createLinearGradient(x0, 0, x0 + W * 0.07, H);
+    ug.addColorStop(0, `rgba(240,198,116,${osc})`);
+    ug.addColorStop(0.5,'rgba(100,160,220,${osc * 0.28})');
+    ug.addColorStop(1, 'rgba(0,18,55,0)');
+    ctx.fillStyle = ug;
+    ctx.beginPath();
+    ctx.moveTo(x0 - 12, 0);
+    ctx.lineTo(x0 + 12, 0);
+    ctx.lineTo(x0 + W * 0.1, H);
+    ctx.lineTo(x0 - W * 0.015, H);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Suspended plankton
+  for (let i = 0; i < 28; i++) {
+    const s  = i * 3.87;
+    const px = ((Math.sin(s) * 0.5 + 0.5 + t * 0.000025 * (i % 3 - 1)) % 1) * W;
+    const py = ((Math.cos(s * 1.3) * 0.5 + 0.5 + t * 0.000016 * (i % 2)) % 1) * H;
+    ctx.globalAlpha = 0.08 + Math.sin(t * 0.001 + s) * 0.04;
+    ctx.fillStyle = '#8ab4d4';
+    ctx.beginPath();
+    ctx.arc(px, py, 0.9, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Rising bubbles
+  for (const b of Atmo.bubbles) {
+    ctx.globalAlpha = b.op * Math.min(1, b.life);
+    ctx.strokeStyle = 'rgba(180,220,255,0.7)';
+    ctx.lineWidth   = 0.9;
+    ctx.beginPath();
+    ctx.arc(b.x * W, b.y * H, b.r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
+}
+
+function drawHookedAtmosphere(t) {
+  if (Game.state !== 'hooked' && Game.state !== 'reel') return;
+  const lx = Game.lure ? Game.lure.x : W * 0.35;
+  const ly = Game.lure ? Game.lure.y : H * 0.38;
+  ctx.save();
+  // Expanding turbulence rings
+  for (let i = 0; i < 4; i++) {
+    const phase = ((t * 0.003 + i * 0.25) % 1);
+    ctx.globalAlpha = (1 - phase) * 0.55;
+    ctx.strokeStyle = '#f0c674';
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath();
+    ctx.arc(lx, ly, 7 + phase * 48, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  // Fight spray lines (only during reel)
+  if (Game.state === 'reel') {
+    for (let i = 0; i < 7; i++) {
+      const ang = (i / 7) * Math.PI * 2 + t * 0.005;
+      const r1  = 11 + Math.sin(t * 0.009 + i) * 4;
+      const r2  = 28 + Math.sin(t * 0.006 + i) * 9;
+      ctx.globalAlpha = 0.28;
+      ctx.strokeStyle = 'rgba(240,198,116,0.5)';
+      ctx.lineWidth   = 1;
+      ctx.beginPath();
+      ctx.moveTo(lx + Math.cos(ang) * r1, ly + Math.sin(ang) * r1);
+      ctx.lineTo(lx + Math.cos(ang) * r2, ly + Math.sin(ang) * r2);
+      ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+// ── CUTAWAY FLASH SYSTEM ─────────────────────────────────────────────────────
+
+const CutAway = { active: false, type: null, t0: 0, dur: 0 };
+
+function triggerCutaway(type, dur) {
+  CutAway.active = true;
+  CutAway.type   = type;
+  CutAway.t0     = performance.now();
+  CutAway.dur    = dur || 1000;
+}
+
+function spawnTrophyParticles() {
+  const lx = Game.lure ? Game.lure.x : W * 0.4;
+  const ly = Game.lure ? Game.lure.y : H * 0.38;
+  for (let i = 0; i < 32; i++) {
+    const ang   = Math.random() * Math.PI * 2;
+    const speed = Math.random() * 220 + 60;
+    Atmo.particles.push({
+      x: lx, y: ly,
+      vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed - 180,
+      r:    Math.random() * 3 + 1,
+      life: Math.random() * 1.6 + 0.5,
+      color: Math.random() < 0.65 ? '#f0c674' : '#fff',
+    });
+  }
+}
+
+function drawCutaway(now) {
+  if (!CutAway.active) return;
+  const elapsed  = now - CutAway.t0;
+  const progress = Math.min(1, elapsed / CutAway.dur);
+  if (progress >= 1) { CutAway.active = false; return; }
+  const env = progress < 0.15 ? progress / 0.15 :
+              progress > 0.78 ? (1 - progress) / 0.22 : 1;
+  ctx.save();
+
+  if (CutAway.type === 'splash') {
+    const r = progress * Math.max(W, H) * 1.1;
+    const g = ctx.createRadialGradient(W * 0.42, H * 0.4, 0, W * 0.42, H * 0.4, r);
+    g.addColorStop(0, `rgba(240,198,116,${0.85 * env})`);
+    g.addColorStop(0.25, `rgba(240,140,50,${0.35 * env})`);
+    g.addColorStop(1, 'rgba(0,20,60,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    // Droplet rays
+    ctx.strokeStyle = `rgba(180,215,255,${0.55 * env})`;
+    ctx.lineWidth   = 1.5;
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2;
+      const dr = progress * 72;
+      ctx.beginPath();
+      ctx.moveTo(W*0.42 + Math.cos(a)*9, H*0.4 + Math.sin(a)*9);
+      ctx.lineTo(W*0.42 + Math.cos(a)*dr, H*0.4 + Math.sin(a)*dr);
+      ctx.stroke();
+    }
+  }
+
+  else if (CutAway.type === 'strike') {
+    const burst = progress < 0.18 ? progress / 0.18 : 1 - (progress - 0.18) / 0.82;
+    const g2    = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H));
+    g2.addColorStop(0,   `rgba(255,235,100,${burst * 0.88})`);
+    g2.addColorStop(0.28,`rgba(240,130,30,${burst * 0.55})`);
+    g2.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.fillStyle = g2;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  else if (CutAway.type === 'breach') {
+    for (let i = 0; i < 18; i++) {
+      const a   = (i / 18) * Math.PI * 2;
+      const spd = 0.28 + (i % 3) * 0.09;
+      const dr  = progress * spd * H * 0.52;
+      ctx.globalAlpha = (1 - progress) * 0.65 * env;
+      ctx.strokeStyle = 'rgba(185,225,255,0.85)';
+      ctx.lineWidth   = 1 + (i % 2) * 0.8;
+      ctx.beginPath();
+      ctx.moveTo(W * 0.5, H * 0.38);
+      ctx.lineTo(W * 0.5 + Math.cos(a) * dr, H * 0.38 + Math.sin(a) * dr);
+      ctx.stroke();
+    }
+  }
+
+  else if (CutAway.type === 'trophy') {
+    const bloom = Math.sin(progress * Math.PI);
+    const g3    = ctx.createRadialGradient(W/2, H*0.33, 0, W/2, H*0.33, W * 0.85);
+    g3.addColorStop(0, `rgba(240,198,116,${bloom * 0.52})`);
+    g3.addColorStop(0.5,`rgba(240,150,60,${bloom * 0.22})`);
+    g3.addColorStop(1,  'rgba(0,0,0,0)');
+    ctx.fillStyle = g3;
+    ctx.fillRect(0, 0, W, H);
+    // Trophy particle spray
+    for (const p of Atmo.particles) {
+      ctx.globalAlpha = Math.max(0, p.life / 2) * env;
+      ctx.fillStyle   = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+// ═══════════════════════════════════════════════════════════════════════════
+function drawScene(t) {
+  drawWater(t);
+  drawDawnAtmosphere(t);       // mist · light shafts · birds
+  drawUnderwaterAtmosphere(t); // depth tint · shafts · bubbles · plankton
+
+  if (Game.state === 'sink' || Game.state === 'wait') drawFishShadows(t);
+
+  drawHookedAtmosphere(t);     // turbulence rings · fight spray
+  drawBoat(t);
+
+  if (Game.state === 'arming') drawAim(t);
+  if (Game.state === 'cast')   drawCastAnim(t);
+  if (Game.state === 'sink' || Game.state === 'wait') drawLureInWater(t);
+  if (Game.state === 'hooked' || Game.state === 'reel') {
+    drawLureInWater(t);
+    drawHookedFish(t);
+  }
+  drawCutaway(t); // flash overlays — always last
+}
+
+// --- State ---
+function setState(s) {
+  const prev = Game.state;
+  Game.state = s;
+  // Canvas cutaway flashes on key transitions
+  if (s === 'sink')   triggerCutaway('splash', 900);
+  if (s === 'hooked') triggerCutaway('strike', 750);
+  if (s === 'reel' && prev === 'hooked') triggerCutaway('breach', 1200);
+  if (s === 'landed') { spawnTrophyParticles(); triggerCutaway('trophy', 2800); }
+  document.getElementById('state').textContent = s;
+  updateHUD();
+}
+
+function updateHUD() {
+  const p = document.getElementById('prompt');
+  const tk = document.getElementById('ticks');
+  const ap = document.getElementById('armingPanel');
+  const tg = document.getElementById('trigger');
+  const cp = document.getElementById('compass');
+
+  tk.classList.remove('show');
+  ap.classList.remove('show');
+  cp.classList.remove('arming');
+  tg.classList.remove('disabled', 'held');
+
+  switch (Game.state) {
+    case 'idle': setBgVideo(VIDEO.bg.idle);
+      p.textContent = Game.inputMode === 'tap'
+        ? 'Hold trigger · tap charges power'
+        : 'Hold trigger · pull back · release at top of arc';
+      break;
+    case 'arming':
+      p.textContent = 'Swing now · release thumb to cast';
+      ap.classList.add('show');
+      cp.classList.add('arming');
+      tg.classList.add('held');
+      break;
+    case 'cast':
+      p.textContent = ''; tg.classList.add('disabled'); break;
+    case 'sink': setBgVideo(VIDEO.bg.sink);
+      p.textContent = 'Lure descending…'; tg.classList.add('disabled'); break;
+    case 'wait': setBgVideo(VIDEO.bg.wait);
+      p.textContent = 'Hold still. Wait for the bite.'; tg.classList.add('disabled'); break;
+    case 'hooked':
+      p.textContent = 'Fish on. Shake back to reel.';
+      tg.classList.add('disabled'); break;
+    case 'reel':
+      p.textContent = 'Reel · reel · reel';
+      tk.classList.add('show'); tg.classList.add('disabled'); break;
+    case 'landed':
+      p.textContent = ''; tg.classList.add('disabled'); break;
+  }
+}
+
+function startArming() {
+  if (Game.state !== 'idle') return;
+  if (!Input.calibrated) {
+    Input.alphaCalibration = Input.alpha || 0;
+    Input.gammaCalibration = Input.gamma || 0;
+    Input.calibrated = true;
+  }
+  Game.triggerHeld = true;
+  Game.armingPeak = 0;
+  Game.armingHoldTime = 0;
+  Game.armingTapPower = 0;
+  Game.armingGammaSum = Input.gamma || 0;
+  Game.armingGammaCount = 1;
+  setState('arming');
+}
+
+function releaseCast() {
+  if (!Game.triggerHeld) return;
+  Game.triggerHeld = false;
+  if (Game.state !== 'arming') return;
+  let power, heading;
+  if (Game.inputMode === 'tap') {
+    power = Math.min(1, Game.armingTapPower);
+    heading = (Math.sin(Game.armingHoldTime * 1.4) * 50);
+  } else {
+    // v4a: accel-based power (linear, anchored at hard cast peak 77.89 m/s²)
+    const rawPower = Math.max(0, (Game.armingPeak - POWER_FLOOR_A) / (POWER_MAX_A - POWER_FLOOR_A));
+    power = Math.min(1, rawPower);
+    // v4a: gamma-based direction (more reliable than compass in sandbox)
+    const avgGamma = Game.armingGammaCount > 0
+      ? Game.armingGammaSum / Game.armingGammaCount
+      : Input.gamma;
+    const gDelta = avgGamma - Input.gammaCalibration;
+    // negative gDelta = tilt right = aim right; positive = tilt left = aim left
+    // map to heading degrees: ±DIR_GAMMA_RANGE → ±90 heading
+    heading = -(gDelta / DIR_GAMMA_RANGE) * 90;
+  }
+  if (power < POWER_MIN) {
+    setState('idle');
+    flashPrompt('Not enough power · pull harder');
+    return;
+  }
+  Game.lockedPower = power;
+  Game.lockedHeading = heading;
+  startCast();
+}
+
+function startCast() {
+  // cast endpoint already cached by drawAim; if not, recompute
+  if (Game.cast.x1 === 0 && Game.cast.y1 === 0) {
+    const tipX = bx() - 58, tipY = by();
+    const headingRad = (Game.lockedHeading / 90) * (Math.PI / 3);
+    const angle = Math.PI + headingRad;
+    const length = 40 + W * 0.78 * Game.lockedPower;
+    Game.cast.x0 = tipX; Game.cast.y0 = tipY;
+    Game.cast.x1 = tipX + Math.cos(angle) * length;
+    Game.cast.y1 = tipY + Math.sin(angle) * length;
+  }
+  Game.cast.t = 0;
+  setState('cast');
+}
+
+function landLure() {
+  Game.lure.x = Game.cast.x1;
+  Game.lure.y = Game.cast.y1;
+  Game.lure.depth = 0;
+  // splash ripples
+  Game.ripples = [];
+  for (let i = 0; i < 3; i++) {
+    Game.ripples.push({ x: Game.lure.x, y: Game.lure.y, r: 4 + i * 4, a: 0.7 });
+  }
+  playCutaway(VIDEO.cut.splash, null); setState('sink');
+}
+
+function spawnFishShadows() {
+  Game.fishShadows = [];
+  const count = 2 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < count; i++) {
+    Game.fishShadows.push({
+      x: Math.random() * W * 0.85,
+      y: Math.random() * H,
+      r: Math.random() * Math.PI * 2,
+      size: 12 + Math.random() * 18,
+      a: 0.25 + Math.random() * 0.3,
+      vx: (Math.random() - 0.5) * 0.5,
+      vy: (Math.random() - 0.5) * 0.3
+    });
+  }
+}
+
+function startBite() {
+  Game.fish = rollFish();
+  Game.hookedJitter = Math.random() * 100;
+  playCutaway(VIDEO.cut.approach, () => { playCutaway(VIDEO.cut.strike, null); }); setState('hooked');
+  vibrate([100, 70, 100, 70, 240]);
+  const fl = document.getElementById('flash');
+  fl.classList.remove('fire'); void fl.offsetWidth; fl.classList.add('fire');
+  setTimeout(() => {
+    if (Game.state === 'hooked') {
+      Game.reelTicks = 0; Game.reelIdleTimer = 0;
+      renderTicks(); setState('reel');
+    }
+  }, 850);
+}
+
+function renderTicks() {
+  const c = document.getElementById('ticks'); c.innerHTML = '';
+  const max = Game.fish ? Game.fish.hp : 12;
+  for (let i = 0; i < max; i++) {
+    const d = document.createElement('div');
+    d.className = 'tick' + (i < Game.reelTicks ? ' on' : '');
+    c.appendChild(d);
+  }
+}
+
+function reelTick() {
+  Game.reelTicks++; Game.reelIdleTimer = 0;
+  const p = Game.reelTicks / Game.fish.hp;
+  // pull lure toward boat
+  Game.lure.x = Game.cast.x1 + (bx() - 58 - Game.cast.x1) * p;
+  Game.lure.y = Game.cast.y1 + (by() - Game.cast.y1) * p;
+  renderTicks(); vibrate(38);
+  if (Game.reelTicks >= Game.fish.hp) land();
+}
+
+function land() {
+  Game.catches++;
+  document.getElementById('catches').textContent = Game.catches;
+  playCutaway(VIDEO.cut.breach, () => playCutaway(VIDEO.cut.trophy, null)); setState('landed');
+  vibrate([180, 70, 180, 70, 380]);
+  document.getElementById('catchSpecies').textContent = Game.fish.species;
+  document.getElementById('catchStats').textContent =
+    `${Game.fish.weight.toFixed(1)} lb · ${Math.round(Game.fish.fight * 100)}% fight · ${Game.fish.hp} reels`;
+  const c = document.getElementById('catch'); c.classList.add('show');
+  c.onclick = () => {
+    c.classList.remove('show'); c.onclick = null;
+    Game.fish = null; Game.ripples = [];
+    ReelClassifier.reset();
+    setState('idle');
+  };
+}
+
+function loseFish(reason) {
+  flashPrompt(reason);
+  setTimeout(() => {
+    Game.fish = null; Game.ripples = [];
+    ReelClassifier.reset();
+    setState('idle');
+  }, 1700);
+}
+
+function flashPrompt(msg) {
+  const p = document.getElementById('prompt');
+  p.textContent = msg; p.classList.add('lost');
+  setTimeout(() => p.classList.remove('lost'), 1600);
+}
+
+function vibrate(p) { if (navigator.vibrate) { try { navigator.vibrate(p); } catch (e) {} } }
+
+// --- Main loop ---
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now; const t = now;
+
+  updateAtmo(dt);
+
+  if (Game.state === 'arming') {
+    Game.armingHoldTime += dt;
+    if (Game.inputMode === 'tap') {
+      Game.armingTapPower = Math.min(1, Game.armingTapPower + dt * 0.7);
+    }
+    // update meters
+    const rawP = Math.max(0,(Game.armingPeak - POWER_FLOOR_A)/(POWER_MAX_A - POWER_FLOOR_A));
+    const power = Game.inputMode === 'tap' ? Game.armingTapPower : Math.min(1, rawP);
+    document.getElementById('powerFill').style.width = (power * 100) + '%';
+    document.getElementById('powerPeak').style.left = (power * 100) + '%';
+    document.getElementById('powerVal').textContent = Math.round(power * 100) + '%';
+    let h = Game.inputMode === 'tap'
+      ? Math.sin(Game.armingHoldTime * 1.4) * 50
+      : Input.headingDelta();
+    const dirPct = 50 + (h / 90) * 50;
+    document.getElementById('dirMarker').style.left = Math.max(0, Math.min(100, dirPct)) + '%';
+    document.getElementById('dirVal').textContent = (h >= 0 ? '+' : '') + h.toFixed(0) + '°';
+    document.getElementById('delta').textContent = 'Δ ' + (h >= 0 ? '+' : '') + h.toFixed(0) + '°';
+  } else if (Game.state === 'cast') {
+    Game.cast.t += dt;
+    if (Game.cast.t >= 0.9) landLure();
+  } else if (Game.state === 'sink') {
+    Game.lure.depth += dt * 0.5;
+    for (const r of Game.ripples) { r.r += 30 * dt; r.a *= 0.96; }
+    Game.ripples = Game.ripples.filter(r => r.a > 0.05);
+    if (Game.lure.depth >= 1.0) {
+      setState('wait');
+      Game.biteTimer = 2 + Math.random() * 5;
+      spawnFishShadows();
+    }
+  } else if (Game.state === 'wait') {
+    Game.biteTimer -= dt;
+    for (const f of Game.fishShadows) {
+      f.x += f.vx; f.y += f.vy;
+      const dx = Game.lure.x - f.x, dy = Game.lure.y - f.y;
+      f.vx += dx * 0.000025; f.vy += dy * 0.000025;
+      f.r = Math.atan2(f.vy, f.vx);
+      f.vx *= 0.995; f.vy *= 0.995;
+    }
+    if (Game.biteTimer <= 0) startBite();
+  } else if (Game.state === 'reel') {
+    Game.reelIdleTimer += dt;
+    if (Game.reelIdleTimer > 3.2) loseFish('Line went slack. Fish lost.');
+  }
+
+  ctx.clearRect(0, 0, W, H);
+  drawScene(t);
+  requestAnimationFrame(loop);
+}
+
+// --- Sensors ---
+let motionReceived = false;
+let gravityX = 0, gravityY = 0, gravityZ = 0, gravityInit = false;
+
+function onOrient(e) {
+  if (e.alpha !== null) Input.alpha = e.alpha;
+  if (e.beta  !== null) Input.beta  = e.beta;
+  if (e.gamma !== null) Input.gamma = e.gamma;
+  const h = Math.round(((Input.alpha || 0) + 360) % 360);
+  document.getElementById('heading').textContent = String(h).padStart(3,'0') + '°';
+  document.getElementById('cardinal').textContent = ['N','NE','E','SE','S','SW','W','NW'][Math.round(h/45)%8];
+}
+
+let lastT = performance.now()/1000;
+function onMotion(e) {
+  motionReceived = true;
+  const a  = e.acceleration;
+  const ag = e.accelerationIncludingGravity;
+  let aax = 0, aay = 0, aaz = 0;
+  const aHasSignal = a && ((a.x !== null && a.x !== 0) || (a.y !== null && a.y !== 0) || (a.z !== null && a.z !== 0));
+  if (aHasSignal) {
+    aax = a.x || 0; aay = a.y || 0; aaz = a.z || 0;
+  } else if (ag) {
+    if (!gravityInit) {
+      gravityX = ag.x || 0; gravityY = ag.y || 0; gravityZ = ag.z || 0; gravityInit = true;
+    }
+    const A = 0.9;
+    gravityX = A*gravityX + (1-A)*(ag.x || 0);
+    gravityY = A*gravityY + (1-A)*(ag.y || 0);
+    gravityZ = A*gravityZ + (1-A)*(ag.z || 0);
+    aax = (ag.x || 0) - gravityX;
+    aay = (ag.y || 0) - gravityY;
+    aaz = (ag.z || 0) - gravityZ;
+  }
+  Input.aax = aax; Input.aay = aay; Input.aaz = aaz;
+  Input.aMag = Math.hypot(aax, aay, aaz);
+
+  const t = performance.now()/1000;
+  const dt = t - lastT; lastT = t;
+  const sample = { aax, aay, aaz, aMag: Input.aMag, headingDelta: Input.headingDelta(), t };
+
+  // Arming: track peak accel + accumulate gamma for direction
+  if (Game.state === 'arming' && Game.triggerHeld) {
+    if (Input.aMag > Game.armingPeak) Game.armingPeak = Input.aMag;
+    Game.armingGammaSum += (Input.gamma || 0);
+    Game.armingGammaCount++;
+  }
+
+  // Reel: throttled shake bursts
+  if (Game.state === 'reel') {
+    const r = ReelClassifier.update(sample, dt);
+    if (r === 'tick') reelTick();
+  } else if (Game.state === 'hooked') {
+    const r = ReelClassifier.update(sample, dt);
+    if (r === 'tick') {
+      Game.reelTicks = 0; Game.reelIdleTimer = 0;
+      renderTicks(); setState('reel'); reelTick();
+    }
+  }
+}
+
+function requestPerms() {
+  const btn = document.getElementById('start');
+  const gate = document.getElementById('gate');
+
+  // Step 1 — immediate visual feedback so player knows tap registered
+  btn.textContent = 'STARTING…';
+  btn.style.opacity = '0.6';
+
+  // Step 2 — iOS needs async permission; Android gets sensors for free.
+  // Wrap iOS path in a self-contained async block so Android never awaits.
+  function attachSensors() {
+    window.addEventListener('devicemotion', onMotion);
+    window.addEventListener('deviceorientation', onOrient);
+    setTimeout(() => {
+      if (!Input.calibrated) {
+        Input.alphaCalibration = Input.alpha || 0;
+        Input.calibrated = true;
+      }
+    }, 600);
+  }
+
+  if (typeof DeviceMotionEvent !== 'undefined' &&
+      typeof DeviceMotionEvent.requestPermission === 'function') {
+    // iOS 13+ — must request inside user gesture
+    DeviceMotionEvent.requestPermission()
+      .then(function(r) { if (r === 'granted') attachSensors(); })
+      .catch(function() {})
+      .finally(function() { startGame(); });
+  } else {
+    // Android, desktop, everything else — sensors available immediately
+    attachSensors();
+    startGame();
+  }
+
+  function startGame() {
+    gate.style.display = 'none';
+    initAtmo();
+
+    // Show a bright banner so player knows the gate closed
+    var banner = document.createElement('div');
+    banner.id = 'startBanner';
+    banner.style.cssText = [
+      'position:fixed',
+      'top:12%',
+      'left:50%',
+      'transform:translateX(-50%)',
+      'background:rgba(240,198,116,0.15)',
+      'border:1px solid rgba(240,198,116,0.6)',
+      'color:#f0c674',
+      'font-family:"JetBrains Mono",monospace',
+      'font-size:11px',
+      'letter-spacing:.2em',
+      'text-align:center',
+      'padding:10px 20px',
+      'z-index:50',
+      'pointer-events:none',
+      'white-space:nowrap'
+    ].join(';');
+    banner.textContent = 'GAME READY  ·  PRESS & HOLD THE AMBER BUTTON';
+    document.body.appendChild(banner);
+    setTimeout(function() {
+      if (banner.parentNode) banner.parentNode.removeChild(banner);
+    }, 4000);
+
+    setState('idle');
+    setTimeout(function() {
+      var fl = document.getElementById('flash');
+      if (fl) { fl.classList.remove('fire'); void fl.offsetWidth; fl.classList.add('fire'); }
+    }, 80);
+    setTimeout(function() {
+      if (!motionReceived) { Game.inputMode = 'tap'; updateHUD(); }
+    }, 2500);
+  }
+}
+
+document.getElementById('start').addEventListener('click', requestPerms);
+document.getElementById('dbgToggle').addEventListener('click', () => {
+  const el = document.getElementById('dbg');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+});
+
+// --- Trigger handlers — use pointer events for clean touch+mouse handling ---
+const triggerEl = document.getElementById('trigger');
+function onTriggerDown(e) { e.preventDefault(); startArming(); }
+function onTriggerUp(e)   { e.preventDefault(); releaseCast(); }
+triggerEl.addEventListener('pointerdown', onTriggerDown);
+window.addEventListener('pointerup', onTriggerUp);
+window.addEventListener('pointercancel', onTriggerUp);
+// Touch fallback for older browsers
+triggerEl.addEventListener('touchstart', onTriggerDown, { passive: false });
+window.addEventListener('touchend', onTriggerUp, { passive: false });
+window.addEventListener('touchcancel', onTriggerUp, { passive: false });
+
+// Tap on screen during hooked/reel = shake fallback (when sensors blocked)
+window.addEventListener('pointerdown', (e) => {
+  if (e.target === triggerEl || triggerEl.contains(e.target)) return;
+  // v4a: pulse-tap reel — any screen tap fires reel tick
+  if (Game.state === 'reel' || Game.state === 'hooked') {
+    const t = performance.now() / 1000;
+    const result = ReelClassifier.onTap(t);
+    if (result === 'tick') {
+      if (Game.state === 'hooked') {
+        Game.reelTicks = 0; Game.reelIdleTimer = 0;
+        renderTicks(); setState('reel');
+      }
+      reelTick();
+    }
+    return;
+  }
+  if (Game.inputMode === 'tap') {
+    if (Game.state === 'hooked') {
+      Game.reelTicks = 0; Game.reelIdleTimer = 0;
+      renderTicks(); setState('reel'); reelTick();
+    } else if (Game.state === 'reel') {
+      reelTick();
+    }
+  }
+});
+
+// Desktop keyboard for testing
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (Game.state === 'idle') startArming();
+    updateAtmo(dt);
+
+  if (Game.state === 'arming') {
+      Game.armingPeak = 14 + Math.random() * 8;  // simulate strong swing
+    }
+  }
+  if (e.code === 'KeyR') {
+    if (Game.state === 'hooked') {
+      Game.reelTicks = 0; Game.reelIdleTimer = 0;
+      renderTicks(); setState('reel');
+    }
+    if (Game.state === 'reel') reelTick();
+  }
+});
+window.addEventListener('keyup', (e) => {
+  if (e.code === 'Space' && Game.triggerHeld) releaseCast();
+});
+
+requestAnimationFrame(loop);
+
+// ── SIMULATOR MODE (?sim in URL) ────────────────────────────────────────────
+(function() {
+  if (!location.search.includes('sim') && !location.hash.includes('sim')) return;
+
+  // Show sim UI immediately
+  document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('simBar').classList.add('on');
+    document.getElementById('simLabel').classList.add('on');
+  });
+
+  // Auto-start: hide gate and launch game as soon as script runs
+  window.addEventListener('load', function() {
+    var gate = document.getElementById('gate');
+    if (gate) gate.style.display = 'none';
+    // Boot with tap mode so no sensors needed
+    Game.inputMode = 'tap';
+    motionReceived = true; // suppress "no motion" timeout
+    initAtmo();
+    setState('idle');
+    // Seed a fake lure position for states that need it
+    if (!Game.lure) Game.lure = { x: W * 0.38, y: H * 0.38 };
+  });
+})();
+
+// State switcher called by sim buttons
+function simState(s) {
+  // Update button highlight
+  document.querySelectorAll('.sim-btn').forEach(function(b) {
+    b.classList.toggle('active', b.textContent.toLowerCase() === s);
+  });
+  // Seed game objects so draw functions have something to render
+  if (!Game.lure) Game.lure = { x: W * 0.38, y: H * 0.38 };
+  if (s === 'arming') { Game.armingPeak = 45; Game.armingGammaSum = -10; Game.armingGammaCount = 1; }
+  if (s === 'hooked' || s === 'reel') {
+    if (!Game.fish) Game.fish = { x: W*0.3, y: H*0.35, angle: 0.8, species: 0 };
+  }
+  setState(s);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+</script>
+</body>
+</html>
