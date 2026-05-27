@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#020208">
+<title>CAST VIZ · 33rdPath</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;1,300&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+  html,body{width:100%;height:100%;overflow:hidden;background:#020208;font-family:'JetBrains Mono',monospace;color:#c8d4dc;overscroll-behavior:none;font-size:12px}
+
+  .grid-bg{position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(80,200,160,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(80,200,160,0.04) 1px,transparent 1px);background-size:24px 24px;z-index:1}
+
+  .lab{position:fixed;inset:0;display:flex;flex-direction:column;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 8px) calc(env(safe-area-inset-right,0px) + 10px) calc(env(safe-area-inset-bottom,0px) + 8px) calc(env(safe-area-inset-left,0px) + 10px);z-index:5}
+
+  header{display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid rgba(80,200,160,0.18);padding-bottom:6px}
+  .lab-title{font-size:10px;letter-spacing:.32em;color:rgba(200,212,220,.55);font-weight:600}
+  .lab-title span{color:#5ce0a8}
+  .file-label{font-size:9px;letter-spacing:.18em;color:rgba(200,212,220,.55);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+  .file-label .n{color:#f0c674}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .stat{border:1px solid rgba(80,200,160,0.18);padding:6px 8px;background:rgba(8,16,22,.4)}
+  .stat .l{font-size:8px;letter-spacing:.22em;color:rgba(200,212,220,.45);text-transform:uppercase}
+  .stat .v{font-size:16px;font-weight:600;color:#5ce0a8;line-height:1.1;margin-top:2px;font-variant-numeric:tabular-nums}
+  .stat .v.amber{color:#f0c674}
+  .stat .v.cyan{color:#00d4ff}
+  .stat .u{font-size:8px;color:rgba(200,212,220,.4);letter-spacing:.16em;text-transform:uppercase}
+
+  .viewports{display:grid;grid-template-columns:auto 1fr;gap:10px;flex:1;min-height:0}
+  .phone-wrap{border:1px solid rgba(80,200,160,0.18);background:rgba(2,4,8,.7);position:relative;display:flex;align-items:center;justify-content:center;padding:6px}
+  canvas#phone{display:block}
+  .phone-overlay{position:absolute;top:6px;left:8px;font-size:8px;letter-spacing:.2em;color:rgba(200,212,220,.45)}
+
+  .chart-wrap{border:1px solid rgba(80,200,160,0.18);background:rgba(2,4,8,.7);position:relative;display:flex;flex-direction:column;min-height:0}
+  canvas#chart{flex:1;width:100%;display:block}
+  .chart-overlay{position:absolute;top:6px;left:8px;font-size:8px;letter-spacing:.2em;color:rgba(200,212,220,.45);pointer-events:none}
+  .chart-overlay .seg{display:inline-block;width:8px;height:2px;vertical-align:middle;margin-right:3px}
+  .chart-axis{height:14px;font-size:8px;color:rgba(200,212,220,.4);letter-spacing:.16em;padding:2px 6px;display:flex;justify-content:space-between;border-top:1px solid rgba(80,200,160,0.12)}
+
+  .legend{display:flex;justify-content:space-around;gap:6px;font-size:9px;letter-spacing:.18em;padding:4px 0}
+  .legend-item{display:flex;align-items:center;gap:4px;color:rgba(200,212,220,.6)}
+  .legend-dot{width:8px;height:8px;border-radius:50%}
+  .legend-dot.settle{background:#5d6678}
+  .legend-dot.windup{background:#f0c674}
+  .legend-dot.release{background:#ff2a3a}
+
+  .scrubber-wrap{display:flex;flex-direction:column;gap:6px;border-top:1px solid rgba(80,200,160,0.18);padding-top:8px}
+  .scrubber-row{display:flex;align-items:center;gap:8px}
+  .scrubber{flex:1;-webkit-appearance:none;appearance:none;height:4px;background:rgba(80,200,160,.15);outline:none}
+  .scrubber::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:#5ce0a8;cursor:pointer;border-radius:50%;box-shadow:0 0 10px rgba(92,224,168,.5)}
+  .scrubber::-moz-range-thumb{width:14px;height:14px;background:#5ce0a8;cursor:pointer;border:none;border-radius:50%}
+  .t-display{font-size:10px;color:#5ce0a8;min-width:54px;text-align:right;font-variant-numeric:tabular-nums}
+
+  .controls{display:flex;gap:6px;justify-content:space-between;align-items:center}
+  .btn{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.22em;padding:9px 12px;border:1px solid rgba(80,200,160,0.4);background:transparent;color:#5ce0a8;cursor:pointer;transition:all .12s;flex:1}
+  .btn:active{transform:scale(.96)}
+  .btn.play{border-color:#f0c674;color:#f0c674}
+  .btn.play:active{background:#f0c674;color:#0a0a14}
+  .btn.load{border-color:#00d4ff;color:#00d4ff}
+  .btn.load:active{background:#00d4ff;color:#0a0a14}
+
+  .drop-hint{font-size:9px;color:rgba(200,212,220,.4);text-align:center;letter-spacing:.18em;margin-top:4px}
+  .drop-zone{position:fixed;inset:0;background:rgba(0,212,255,.1);border:2px dashed #00d4ff;z-index:99;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+  .drop-zone.show{display:flex}
+  .drop-icon{font-size:48px;color:#00d4ff}
+  .drop-text{font-family:'Fraunces',serif;font-style:italic;font-size:22px;color:#00d4ff}
+
+  input[type="file"]{display:none}
+
+  /* ── Compare mode ─────────────────────────────────────────── */
+  .mode-tabs{display:flex;gap:0;border-bottom:1px solid rgba(80,200,160,0.18);margin-bottom:0}
+  .tab{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;letter-spacing:.26em;padding:6px 14px;border:none;background:transparent;color:rgba(200,212,220,.4);cursor:pointer;border-bottom:2px solid transparent;transition:all .12s;margin-bottom:-1px}
+  .tab.active{color:#5ce0a8;border-bottom-color:#5ce0a8}
+  .tab:hover:not(.active){color:rgba(200,212,220,.7)}
+
+  #single-view,#compare-view{display:flex;flex-direction:column;gap:8px;min-height:0;flex:1;overflow:hidden}
+  #compare-view{display:none}
+
+  .cmp-drop{border:1px dashed rgba(0,212,255,0.35);padding:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;transition:border-color .15s;min-height:54px}
+  .cmp-drop:hover{border-color:rgba(0,212,255,0.65)}
+  .cmp-drop-txt{font-size:9px;letter-spacing:.2em;color:rgba(200,212,220,.45)}
+  .cmp-drop-hint{font-size:8px;color:rgba(200,212,220,.3);letter-spacing:.14em}
+  .cmp-pills{display:flex;flex-wrap:wrap;gap:5px;min-height:0}
+  .cmp-pill{font-size:8px;letter-spacing:.14em;padding:3px 8px;border:1px solid;display:flex;align-items:center;gap:5px}
+  .cmp-pill .pill-x{cursor:pointer;opacity:.6;font-size:10px;line-height:1}
+  .cmp-pill .pill-x:hover{opacity:1}
+
+  .cmp-chart-wrap{border:1px solid rgba(80,200,160,0.18);background:rgba(2,4,8,.7);position:relative;display:flex;flex-direction:column;min-height:120px;flex:1}
+  canvas#cmpChart{flex:1;width:100%;display:block}
+  .cmp-chart-axis{height:14px;font-size:8px;color:rgba(200,212,220,.4);letter-spacing:.16em;padding:2px 6px;display:flex;justify-content:space-between;border-top:1px solid rgba(80,200,160,0.12)}
+  .cmp-chart-overlay{position:absolute;top:6px;left:8px;font-size:8px;letter-spacing:.2em;color:rgba(200,212,220,.45);pointer-events:none}
+
+  .cmp-phones{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;min-height:0}
+  .cmp-phone-col{display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0}
+  .cmp-phone-label{font-size:8px;letter-spacing:.16em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px;text-align:center}
+  .cmp-phone-wrap{border:1px solid;background:rgba(2,4,8,.7);position:relative;display:flex;align-items:center;justify-content:center;padding:4px}
+
+  .cmp-stats{display:flex;flex-direction:column;gap:4px}
+  .cmp-stat-row{display:grid;grid-template-columns:20px 1fr 1fr 1fr 1fr;gap:4px;align-items:center}
+  .cmp-stat-row.header{opacity:.45;font-size:8px;letter-spacing:.2em}
+  .cmp-stat-row .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+  .cmp-stat-cell{font-size:10px;font-variant-numeric:tabular-nums;padding:3px 5px;background:rgba(8,16,22,.4);border:1px solid rgba(80,200,160,0.1);text-align:right}
+  .cmp-stat-cell.label{text-align:left;font-size:9px;letter-spacing:.14em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+</style>
+</head>
+<body>
+  <div class="grid-bg"></div>
+
+  <div class="lab">
+    <header>
+      <div class="lab-title">⌖ CAST <span>VIZ</span></div>
+      <div class="file-label">FILE <span class="n" id="fileName">aaron · cast-1</span></div>
+    </header>
+
+    <div class="mode-tabs">
+      <button class="tab active" id="tabSingle" onclick="switchMode('single')">SINGLE</button>
+      <button class="tab" id="tabCompare" onclick="switchMode('compare')">COMPARE</button>
+    </div>
+
+    <!-- ═══ SINGLE VIEW ═══ -->
+    <div id="single-view">
+      <div class="stats">
+        <div class="stat"><div class="l">Peak Vel</div><div class="v amber" id="sPeakV">—</div><div class="u">px/s</div></div>
+        <div class="stat"><div class="l">Cast Angle</div><div class="v cyan" id="sAngle">—</div><div class="u">deg · screen</div></div>
+        <div class="stat"><div class="l">Flick Dist</div><div class="v" id="sFlickDist">—</div><div class="u">px in release</div></div>
+        <div class="stat"><div class="l">Hold Time</div><div class="v" id="sHold">—</div><div class="u">sec total</div></div>
+      </div>
+
+      <div class="viewports">
+        <div class="phone-wrap">
+          <canvas id="phone"></canvas>
+          <div class="phone-overlay">DEVICE · 360×780</div>
+        </div>
+        <div class="chart-wrap">
+          <div class="chart-overlay" id="chartOverlay">VELOCITY · px/s</div>
+          <canvas id="chart"></canvas>
+          <div class="chart-axis"><span id="axL">0.00s</span><span id="axR">—</span></div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <div class="legend-item"><span class="legend-dot settle"></span>SETTLE</div>
+        <div class="legend-item"><span class="legend-dot windup"></span>WINDUP</div>
+        <div class="legend-item"><span class="legend-dot release"></span>RELEASE · CAST</div>
+      </div>
+
+      <div class="scrubber-wrap">
+        <div class="scrubber-row">
+          <input type="range" class="scrubber" id="scrub" min="0" max="1000" value="1000">
+          <div class="t-display" id="tDisp">—</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="btn play" id="playBtn">▶ REPLAY</button>
+        <button class="btn load" id="loadBtn">LOAD FILE</button>
+        <input type="file" id="fileInput" accept=".csv,.json">
+      </div>
+
+      <div class="drop-hint">drag CSV or JSON here · or tap LOAD</div>
+    </div><!-- /#single-view -->
+
+    <!-- ═══ COMPARE VIEW ═══ -->
+    <div id="compare-view">
+
+      <div class="cmp-drop" id="cmpDrop" onclick="document.getElementById('cmpFileInput').click()">
+        <div class="cmp-drop-txt">⊕ ADD CAPTURES (2–5)</div>
+        <div class="cmp-drop-hint">tap to pick · or drag files here</div>
+        <input type="file" id="cmpFileInput" accept=".csv,.json" multiple>
+      </div>
+      <div class="cmp-pills" id="cmpPills"></div>
+
+      <div class="cmp-chart-wrap">
+        <div class="cmp-chart-overlay">VELOCITY OVERLAY · px/s · t=0 at pointerdown</div>
+        <canvas id="cmpChart"></canvas>
+        <div class="cmp-chart-axis"><span>0.00s</span><span id="cmpAxR">—</span></div>
+      </div>
+
+      <div class="cmp-phones" id="cmpPhones"></div>
+
+      <div class="scrubber-wrap">
+        <div class="scrubber-row">
+          <input type="range" class="scrubber" id="cmpScrub" min="0" max="1000" value="1000">
+          <div class="t-display" id="cmpTDisp">—</div>
+        </div>
+      </div>
+      <div class="controls">
+        <button class="btn play" id="cmpPlayBtn">▶ REPLAY</button>
+      </div>
+
+      <div class="cmp-stats" id="cmpStats">
+        <div class="cmp-stat-row header">
+          <div></div>
+          <div class="cmp-stat-cell label">PEAK V</div>
+          <div class="cmp-stat-cell label">ANGLE</div>
+          <div class="cmp-stat-cell label">FLICK</div>
+          <div class="cmp-stat-cell label">DUR</div>
+        </div>
+      </div>
+
+    </div><!-- /#compare-view -->
+  </div>
+
+  <div class="drop-zone" id="dropZone">
+    <div class="drop-icon">⤓</div>
+    <div class="drop-text">Drop capture</div>
+  </div>
+
+<script>
+// =================================================================
+// Preloaded data — Aaron's cast capture 2026-05-17
+// =================================================================
+const PRELOADED = [
+  { t:0.7568, type:"pointerdown", x:168.35, y:507.66 },
+  { t:1.2206, type:"pointermove", x:168.35, y:507.45 },
+  { t:1.2239, type:"pointermove", x:168.25, y:507.23 },
+  { t:1.2275, type:"pointermove", x:168.15, y:507.01 },
+  { t:1.2446, type:"pointermove", x:167.95, y:506.58 },
+  { t:1.2607, type:"pointermove", x:167.85, y:506.36 },
+  { t:1.2691, type:"pointermove", x:167.75, y:506.14 },
+  { t:1.2817, type:"pointermove", x:167.65, y:505.92 },
+  { t:1.2903, type:"pointermove", x:167.65, y:505.71 },
+  { t:1.3813, type:"pointermove", x:167.54, y:505.49 },
+  { t:1.3896, type:"pointermove", x:167.44, y:505.49 },
+  { t:1.3977, type:"pointermove", x:167.24, y:505.05 },
+  { t:1.4062, type:"pointermove", x:167.14, y:505.05 },
+  { t:1.4147, type:"pointermove", x:167.04, y:504.83 },
+  { t:1.4229, type:"pointermove", x:166.94, y:504.62 },
+  { t:1.4319, type:"pointermove", x:166.84, y:504.62 },
+  { t:1.4401, type:"pointermove", x:166.64, y:504.18 },
+  { t:1.4478, type:"pointermove", x:166.54, y:504.18 },
+  { t:1.4562, type:"pointermove", x:166.44, y:503.96 },
+  { t:1.4649, type:"pointermove", x:166.34, y:503.75 },
+  { t:1.4853, type:"pointermove", x:166.24, y:503.53 },
+  { t:1.4938, type:"pointermove", x:166.14, y:503.31 },
+  { t:1.5021, type:"pointermove", x:166.04, y:503.09 },
+  { t:1.5108, type:"pointermove", x:165.94, y:503.09 },
+  { t:1.5189, type:"pointermove", x:165.84, y:503.09 },
+  { t:1.5268, type:"pointermove", x:165.74, y:502.88 },
+  { t:1.5354, type:"pointermove", x:165.64, y:502.88 },
+  { t:1.7310, type:"pointermove", x:165.54, y:502.66 },
+  { t:1.7398, type:"pointermove", x:165.44, y:502.66 },
+  { t:1.7478, type:"pointermove", x:165.33, y:502.44 },
+  { t:1.7565, type:"pointermove", x:165.23, y:502.44 },
+  { t:1.7639, type:"pointermove", x:165.13, y:502.22 },
+  { t:1.7854, type:"pointermove", x:165.03, y:502.22 },
+  { t:1.7939, type:"pointermove", x:164.93, y:502.22 },
+  { t:1.8019, type:"pointermove", x:164.73, y:502.01 },
+  { t:1.8101, type:"pointermove", x:164.73, y:501.79 },
+  { t:1.8185, type:"pointermove", x:164.63, y:501.79 },
+  { t:1.8266, type:"pointermove", x:163.93, y:501.35 },
+  { t:1.8349, type:"pointermove", x:163.73, y:501.14 },
+  { t:1.8389, type:"pointermove", x:163.43, y:500.92 },
+  { t:1.8516, type:"pointermove", x:163.02, y:500.70 },
+  { t:1.8600, type:"pointermove", x:162.82, y:500.70 },
+  { t:1.8683, type:"pointermove", x:162.52, y:500.48 },
+  { t:1.8764, type:"pointermove", x:162.02, y:500.26 },
+  { t:1.8850, type:"pointermove", x:161.82, y:500.05 },
+  { t:1.8932, type:"pointermove", x:161.42, y:499.83 },
+  { t:1.9015, type:"pointermove", x:160.92, y:499.83 },
+  { t:1.9100, type:"pointermove", x:160.71, y:499.83 },
+  { t:1.9183, type:"pointermove", x:160.51, y:499.61 },
+  { t:1.9303, type:"pointermove", x:160.21, y:499.61 },
+  { t:1.9524, type:"pointermove", x:159.81, y:499.61 },
+  { t:1.9602, type:"pointermove", x:159.61, y:499.61 },
+  { t:2.0225, type:"pointermove", x:159.11, y:500.70 },
+  { t:2.0304, type:"pointermove", x:158.81, y:502.88 },
+  { t:2.0385, type:"pointermove", x:159.91, y:506.79 },
+  { t:2.0469, type:"pointermove", x:162.12, y:514.63 },
+  { t:2.0557, type:"pointerup",  x:162.12, y:514.63 }
+];
+
+// =================================================================
+// Analysis: phase detection + velocities
+// =================================================================
+const SETTLE_THRESH = 8;     // px/s — below this is "settled"
+const RELEASE_THRESH = 100;  // px/s — above this is the release flick
+
+let dataset = null;  // { samples, vel, phase, stats, viewport }
+
+function analyze(rawTouches) {
+  // Keep only the first contact's events (ignore stop-button taps)
+  const firstId = rawTouches[0]?.id ?? rawTouches[0]?.pointerId;
+  let cluster = rawTouches;
+  if (firstId !== undefined) {
+    // If id field present, keep those matching first id
+    const f = rawTouches.find(p => 'id' in p);
+    if (f) cluster = rawTouches.filter(p => p.id === f.id);
+  }
+  // Drop trailing taps: cut after the first pointerup
+  const upIdx = cluster.findIndex(p => p.type === 'pointerup');
+  const samples = upIdx >= 0 ? cluster.slice(0, upIdx + 1) : cluster;
+
+  // Compute per-sample velocity (px/s)
+  const vel = [];
+  for (let i = 0; i < samples.length; i++) {
+    if (i === 0) { vel.push(0); continue; }
+    const dt = samples[i].t - samples[i-1].t;
+    if (dt <= 0) { vel.push(vel[i-1]); continue; }
+    const dx = samples[i].x - samples[i-1].x;
+    const dy = samples[i].y - samples[i-1].y;
+    vel.push(Math.hypot(dx, dy) / dt);
+  }
+  // light smoothing (3-tap moving avg)
+  const velSm = vel.map((v, i) => {
+    const a = vel[Math.max(0, i-1)], b = v, c = vel[Math.min(vel.length-1, i+1)];
+    return (a + b + c) / 3;
+  });
+
+  // Phase classification — pass through samples
+  const phase = new Array(samples.length).fill('windup');
+  // settle: from start, while velocity is low
+  for (let i = 0; i < samples.length; i++) {
+    if (velSm[i] < SETTLE_THRESH) phase[i] = 'settle';
+    else break;
+  }
+  // release: scan backward from end, while velocity is high
+  for (let i = samples.length - 1; i >= 0; i--) {
+    if (velSm[i] > RELEASE_THRESH || (i < samples.length-1 && phase[i+1] === 'release' && velSm[i] > SETTLE_THRESH * 4)) {
+      phase[i] = 'release';
+    } else break;
+  }
+
+  // Stats
+  const peakV = Math.max(...velSm);
+  const peakIdx = velSm.indexOf(peakV);
+
+  // Release vector: from last non-release sample to pointerup
+  let relStart = phase.findIndex(p => p === 'release');
+  if (relStart === -1) relStart = samples.length - 2;
+  const relStartPt = samples[Math.max(0, relStart - 1)];
+  const relEndPt = samples[samples.length - 1];
+  const flickDx = relEndPt.x - relStartPt.x;
+  const flickDy = relEndPt.y - relStartPt.y;
+  const flickDist = Math.hypot(flickDx, flickDy);
+  // Cast angle: 0° = up on screen (-y), CW positive
+  // atan2(dx, -dy) gives angle from up-screen, clockwise
+  const castAngle = Math.atan2(flickDx, -flickDy) * 180 / Math.PI;
+
+  const settleEnd = phase.findIndex(p => p !== 'settle');
+  const settleDur = settleEnd > 0 ? samples[settleEnd-1].t - samples[0].t : 0;
+  const releaseDur = samples[samples.length-1].t - samples[relStart].t;
+  const totalDur = samples[samples.length-1].t - samples[0].t;
+  const windupDur = totalDur - settleDur - releaseDur;
+
+  return {
+    samples, vel: velSm, phase,
+    stats: {
+      peakV, peakIdx,
+      flickDx, flickDy, flickDist, castAngle,
+      settleDur, windupDur, releaseDur, totalDur,
+      releaseStartIdx: relStart,
+      n: samples.length
+    },
+    viewport: { w: 360, h: 780 }
+  };
+}
+
+// =================================================================
+// Phone canvas — trajectory plot on phone-shaped area
+// =================================================================
+const phoneCanvas = document.getElementById('phone');
+const pctx = phoneCanvas.getContext('2d');
+let scrubT = 1.0;  // normalized 0..1
+
+function fitPhoneCanvas() {
+  const wrap = phoneCanvas.parentElement;
+  const wrapW = wrap.clientWidth - 12;
+  const wrapH = wrap.clientHeight - 12;
+  const vp = dataset?.viewport || { w: 360, h: 780 };
+  const aspect = vp.w / vp.h;
+  let w = wrapH * aspect;
+  let h = wrapH;
+  if (w > wrapW) { w = wrapW; h = w / aspect; }
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+  phoneCanvas.width = w * DPR; phoneCanvas.height = h * DPR;
+  phoneCanvas.style.width = w + 'px'; phoneCanvas.style.height = h + 'px';
+  pctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  return { w, h };
+}
+
+function drawPhone() {
+  if (!dataset) return;
+  const { w, h } = fitPhoneCanvas();
+  const vp = dataset.viewport;
+  const sx = w / vp.w, sy = h / vp.h;
+
+  // Phone bezel + screen background
+  pctx.fillStyle = '#06080c';
+  pctx.fillRect(0, 0, w, h);
+  pctx.strokeStyle = 'rgba(80,200,160,0.25)';
+  pctx.lineWidth = 1;
+  pctx.strokeRect(0.5, 0.5, w - 1, h - 1);
+
+  // Grid lines (quarter)
+  pctx.strokeStyle = 'rgba(80,200,160,0.08)';
+  pctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    pctx.beginPath();
+    pctx.moveTo(w * i/4, 0); pctx.lineTo(w * i/4, h);
+    pctx.moveTo(0, h * i/4); pctx.lineTo(w, h * i/4);
+    pctx.stroke();
+  }
+
+  const { samples, phase, stats } = dataset;
+  const maxIdx = Math.max(0, Math.floor(scrubT * (samples.length - 1)));
+
+  // Draw trajectory in segments by phase color
+  const colors = { settle: '#5d6678', windup: '#f0c674', release: '#ff2a3a' };
+  for (let i = 1; i <= maxIdx; i++) {
+    const p0 = samples[i-1], p1 = samples[i];
+    pctx.strokeStyle = colors[phase[i]] || '#888';
+    pctx.lineWidth = phase[i] === 'release' ? 2.5 : 1.5;
+    pctx.globalAlpha = phase[i] === 'release' ? 1 : 0.85;
+    pctx.beginPath();
+    pctx.moveTo(p0.x * sx, p0.y * sy);
+    pctx.lineTo(p1.x * sx, p1.y * sy);
+    pctx.stroke();
+  }
+  pctx.globalAlpha = 1;
+
+  // Start point
+  const s0 = samples[0];
+  pctx.fillStyle = 'rgba(0,212,255,0.6)';
+  pctx.beginPath(); pctx.arc(s0.x * sx, s0.y * sy, 5, 0, Math.PI * 2); pctx.fill();
+  pctx.strokeStyle = '#00d4ff';
+  pctx.lineWidth = 1.5;
+  pctx.beginPath(); pctx.arc(s0.x * sx, s0.y * sy, 8, 0, Math.PI * 2); pctx.stroke();
+  // label
+  pctx.fillStyle = '#00d4ff';
+  pctx.font = '8px JetBrains Mono';
+  pctx.fillText('DOWN', s0.x * sx + 12, s0.y * sy + 3);
+
+  // Cursor (current scrub position)
+  if (maxIdx >= 0) {
+    const cur = samples[maxIdx];
+    pctx.fillStyle = '#5ce0a8';
+    pctx.beginPath(); pctx.arc(cur.x * sx, cur.y * sy, 4, 0, Math.PI * 2); pctx.fill();
+    pctx.strokeStyle = '#5ce0a8';
+    pctx.beginPath(); pctx.arc(cur.x * sx, cur.y * sy, 9, 0, Math.PI * 2); pctx.stroke();
+  }
+
+  // Endpoint if scrub at 100%
+  if (scrubT >= 0.999) {
+    const sE = samples[samples.length - 1];
+    pctx.fillStyle = '#ff2a3a';
+    pctx.beginPath(); pctx.arc(sE.x * sx, sE.y * sy, 5, 0, Math.PI * 2); pctx.fill();
+    pctx.strokeStyle = '#ff2a3a';
+    pctx.beginPath(); pctx.arc(sE.x * sx, sE.y * sy, 9, 0, Math.PI * 2); pctx.stroke();
+    pctx.fillStyle = '#ff2a3a';
+    pctx.font = '8px JetBrains Mono';
+    pctx.fillText('UP', sE.x * sx + 12, sE.y * sy + 3);
+
+    // Cast vector arrow — from release-start to up
+    const rs = samples[stats.releaseStartIdx];
+    const re = samples[samples.length - 1];
+    pctx.strokeStyle = 'rgba(255,42,58,0.5)';
+    pctx.setLineDash([3, 3]);
+    pctx.lineWidth = 1;
+    pctx.beginPath();
+    pctx.moveTo(rs.x * sx, rs.y * sy);
+    pctx.lineTo(re.x * sx, re.y * sy);
+    pctx.stroke();
+    pctx.setLineDash([]);
+  }
+}
+
+// =================================================================
+// Velocity chart
+// =================================================================
+const chartCanvas = document.getElementById('chart');
+const cctx = chartCanvas.getContext('2d');
+
+function fitChart() {
+  const wrap = chartCanvas.parentElement;
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight - 14; // minus axis
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+  chartCanvas.width = w * DPR; chartCanvas.height = h * DPR;
+  chartCanvas.style.width = w + 'px'; chartCanvas.style.height = h + 'px';
+  cctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  return { w, h };
+}
+
+function drawChart() {
+  if (!dataset) return;
+  const { w, h } = fitChart();
+  cctx.clearRect(0, 0, w, h);
+
+  const { samples, vel, phase, stats } = dataset;
+  const t0 = samples[0].t;
+  const tEnd = samples[samples.length - 1].t;
+  const tSpan = Math.max(0.001, tEnd - t0);
+  const vMax = Math.max(50, Math.ceil(stats.peakV / 100) * 100);
+
+  // Y-axis ticks
+  cctx.strokeStyle = 'rgba(80,200,160,0.08)';
+  cctx.lineWidth = 1;
+  for (let i = 1; i < 5; i++) {
+    const y = (h / 5) * i;
+    cctx.beginPath(); cctx.moveTo(0, y); cctx.lineTo(w, y); cctx.stroke();
+  }
+
+  // Threshold lines
+  cctx.strokeStyle = 'rgba(255,42,58,0.25)';
+  cctx.setLineDash([3, 4]);
+  const yRel = h - (RELEASE_THRESH / vMax) * h;
+  cctx.beginPath(); cctx.moveTo(0, yRel); cctx.lineTo(w, yRel); cctx.stroke();
+  cctx.fillStyle = 'rgba(255,42,58,0.6)';
+  cctx.font = '8px JetBrains Mono';
+  cctx.fillText('REL ' + RELEASE_THRESH, 4, yRel - 2);
+
+  cctx.strokeStyle = 'rgba(93,102,120,0.4)';
+  const ySet = h - (SETTLE_THRESH / vMax) * h;
+  cctx.beginPath(); cctx.moveTo(0, ySet); cctx.lineTo(w, ySet); cctx.stroke();
+  cctx.fillStyle = 'rgba(140,150,170,0.6)';
+  cctx.fillText('SET ' + SETTLE_THRESH, 4, ySet - 2);
+  cctx.setLineDash([]);
+
+  // Phase regions (colored backgrounds)
+  for (let i = 1; i < samples.length; i++) {
+    const x0 = ((samples[i-1].t - t0) / tSpan) * w;
+    const x1 = ((samples[i].t - t0) / tSpan) * w;
+    const c = phase[i] === 'settle' ? 'rgba(93,102,120,0.04)' :
+              phase[i] === 'windup' ? 'rgba(240,198,116,0.04)' :
+              'rgba(255,42,58,0.07)';
+    cctx.fillStyle = c;
+    cctx.fillRect(x0, 0, x1 - x0, h);
+  }
+
+  // Velocity polyline, color by phase
+  for (let i = 1; i < samples.length; i++) {
+    const x0 = ((samples[i-1].t - t0) / tSpan) * w;
+    const y0 = h - (vel[i-1] / vMax) * h;
+    const x1 = ((samples[i].t - t0) / tSpan) * w;
+    const y1 = h - (vel[i] / vMax) * h;
+    cctx.strokeStyle = phase[i] === 'settle' ? '#5d6678' :
+                       phase[i] === 'windup' ? '#f0c674' : '#ff2a3a';
+    cctx.lineWidth = phase[i] === 'release' ? 2.5 : 1.5;
+    cctx.beginPath();
+    cctx.moveTo(x0, y0); cctx.lineTo(x1, y1);
+    cctx.stroke();
+  }
+
+  // Peak velocity marker
+  const peakX = ((samples[stats.peakIdx].t - t0) / tSpan) * w;
+  const peakY = h - (stats.peakV / vMax) * h;
+  cctx.fillStyle = '#fff';
+  cctx.beginPath(); cctx.arc(peakX, peakY, 3, 0, Math.PI * 2); cctx.fill();
+  cctx.font = '8px JetBrains Mono';
+  cctx.fillStyle = 'rgba(255,255,255,0.7)';
+  cctx.fillText('PEAK ' + Math.round(stats.peakV), peakX + 6, peakY + 3);
+
+  // Scrub cursor
+  const maxIdx = Math.max(0, Math.floor(scrubT * (samples.length - 1)));
+  const sx = ((samples[maxIdx].t - t0) / tSpan) * w;
+  cctx.strokeStyle = 'rgba(92,224,168,0.7)';
+  cctx.setLineDash([2, 3]);
+  cctx.lineWidth = 1;
+  cctx.beginPath(); cctx.moveTo(sx, 0); cctx.lineTo(sx, h); cctx.stroke();
+  cctx.setLineDash([]);
+
+  // Axis labels
+  document.getElementById('axL').textContent = '0.00s';
+  document.getElementById('axR').textContent = tEnd.toFixed(2) + 's';
+}
+
+// =================================================================
+// Stats display
+// =================================================================
+function updateStats() {
+  if (!dataset) return;
+  const s = dataset.stats;
+  document.getElementById('sPeakV').textContent = Math.round(s.peakV);
+  // Format angle as +/- and direction word
+  const a = s.castAngle;
+  let dir = '';
+  if (a > -22.5 && a < 22.5) dir = 'UP';
+  else if (a >= 22.5 && a < 67.5) dir = 'UP-RT';
+  else if (a >= 67.5 && a < 112.5) dir = 'RIGHT';
+  else if (a >= 112.5 && a < 157.5) dir = 'DN-RT';
+  else if (a >= 157.5 || a < -157.5) dir = 'DOWN';
+  else if (a >= -157.5 && a < -112.5) dir = 'DN-LT';
+  else if (a >= -112.5 && a < -67.5) dir = 'LEFT';
+  else if (a >= -67.5 && a < -22.5) dir = 'UP-LT';
+  document.getElementById('sAngle').textContent = a.toFixed(0) + '° ' + dir;
+  document.getElementById('sFlickDist').textContent = s.flickDist.toFixed(0);
+  document.getElementById('sHold').textContent = s.totalDur.toFixed(2);
+}
+
+// =================================================================
+// Loaders — CSV (touches) + JSON
+// =================================================================
+function parseTouchCSV(text) {
+  const lines = text.trim().split('\n');
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const parts = lines[i].split(',');
+    if (parts.length < 4) continue;
+    rows.push({
+      t: parseFloat(parts[0]),
+      type: parts[1].trim(),
+      x: parseFloat(parts[2]),
+      y: parseFloat(parts[3]),
+      pressure: parts[4] ? parseFloat(parts[4]) : 1,
+      id: parts[5] ? parseInt(parts[5]) : 0
+    });
+  }
+  return rows;
+}
+
+function loadData(touches, name) {
+  if (!touches || !touches.length) return;
+  dataset = analyze(touches);
+  document.getElementById('fileName').textContent = name || 'unnamed';
+  scrubT = 1.0;
+  document.getElementById('scrub').value = 1000;
+  updateStats();
+  refresh();
+}
+
+function refresh() {
+  drawPhone();
+  drawChart();
+  const t = dataset ? dataset.samples[0].t + scrubT * (dataset.samples[dataset.samples.length-1].t - dataset.samples[0].t) : 0;
+  document.getElementById('tDisp').textContent = (t - (dataset?.samples[0].t || 0)).toFixed(3) + 's';
+}
+
+window.addEventListener('resize', refresh);
+
+// =================================================================
+// File input + drag-drop
+// =================================================================
+const fileInput = document.getElementById('fileInput');
+document.getElementById('loadBtn').addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  handleFile(file);
+});
+function handleFile(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    let touches = [];
+    if (file.name.endsWith('.json')) {
+      try {
+        const obj = JSON.parse(text);
+        touches = obj.touches || [];
+      } catch (e) { alert('Bad JSON'); return; }
+    } else {
+      touches = parseTouchCSV(text);
+    }
+    loadData(touches, file.name);
+  };
+  reader.readAsText(file);
+}
+// Drag-drop
+['dragenter', 'dragover'].forEach(ev => {
+  window.addEventListener(ev, (e) => {
+    e.preventDefault(); e.stopPropagation();
+    document.getElementById('dropZone').classList.add('show');
+  });
+});
+['dragleave', 'drop'].forEach(ev => {
+  window.addEventListener(ev, (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (ev === 'dragleave' && e.target !== document.body && e.relatedTarget) return;
+    document.getElementById('dropZone').classList.remove('show');
+  });
+});
+window.addEventListener('drop', (e) => {
+  const file = e.dataTransfer?.files?.[0];
+  if (file) handleFile(file);
+});
+
+// =================================================================
+// Scrubber + playback
+// =================================================================
+const scrub = document.getElementById('scrub');
+scrub.addEventListener('input', () => {
+  scrubT = scrub.value / 1000;
+  if (playing) stopPlayback();
+  refresh();
+});
+
+let playing = false;
+let playStartReal = 0;
+let playStartT = 0;
+function startPlayback() {
+  if (!dataset) return;
+  playing = true;
+  document.getElementById('playBtn').textContent = '■ STOP';
+  playStartReal = performance.now() / 1000;
+  playStartT = scrubT >= 0.99 ? 0 : scrubT;
+  tickPlay();
+}
+function stopPlayback() {
+  playing = false;
+  document.getElementById('playBtn').textContent = '▶ REPLAY';
+}
+function tickPlay() {
+  if (!playing || !dataset) return;
+  const elapsed = performance.now() / 1000 - playStartReal;
+  const dur = dataset.stats.totalDur;
+  scrubT = Math.min(1, playStartT + elapsed / dur);
+  scrub.value = scrubT * 1000;
+  refresh();
+  if (scrubT >= 1) {
+    stopPlayback();
+    return;
+  }
+  requestAnimationFrame(tickPlay);
+}
+document.getElementById('playBtn').addEventListener('click', () => {
+  if (playing) stopPlayback(); else startPlayback();
+});
+
+// =================================================================
+// Boot
+// =================================================================
+setTimeout(() => {
+  loadData(PRELOADED, 'aaron · cast-1 · 2026-05-17');
+}, 50);
+
+// =================================================================
+// Mode switching — single ↔ compare
+// =================================================================
+function switchMode(mode) {
+  const isCmp = mode === 'compare';
+  document.getElementById('single-view').style.display = isCmp ? 'none' : 'flex';
+  document.getElementById('compare-view').style.display = isCmp ? 'flex' : 'none';
+  document.getElementById('tabSingle').classList.toggle('active', !isCmp);
+  document.getElementById('tabCompare').classList.toggle('active', isCmp);
+  if (isCmp) renderCompare();
+}
+
+// =================================================================
+// Compare mode — data + colors
+// =================================================================
+const CMP_COLORS = ['#00d4ff', '#f0c674', '#b794f4', '#68d391', '#fc8181'];
+let cmpCaptures = [];  // [{ name, dataset, color }]
+let cmpScrubT = 1.0;
+let cmpPlaying = false;
+let cmpPlayStartReal = 0;
+let cmpPlayStartT = 0;
+
+function cmpShortName(filename) {
+  return filename.replace(/\.(csv|json)$/i, '').replace(/[-_]/g, ' ').slice(0, 22);
+}
+
+function cmpTMax() {
+  let tMax = 0;
+  cmpCaptures.forEach(({ dataset: ds }) => {
+    const dur = ds.samples[ds.samples.length - 1].t - ds.samples[0].t;
+    if (dur > tMax) tMax = dur;
+  });
+  return Math.max(0.5, tMax);
+}
+
+// =================================================================
+// Compare — file loading
+// =================================================================
+const cmpFileInput = document.getElementById('cmpFileInput');
+cmpFileInput.addEventListener('change', (e) => {
+  const files = Array.from(e.target.files).slice(0, 5 - cmpCaptures.length);
+  files.forEach(f => loadCmpFile(f));
+  cmpFileInput.value = '';
+});
+
+function loadCmpFile(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    let touches = [];
+    if (file.name.endsWith('.json')) {
+      try { const obj = JSON.parse(text); touches = obj.touches || []; }
+      catch (err) { alert('Bad JSON: ' + file.name); return; }
+    } else {
+      touches = parseTouchCSV(text);
+    }
+    if (!touches.length) { alert('No touch data found in ' + file.name); return; }
+    if (cmpCaptures.length >= 5) { alert('Max 5 captures in compare mode'); return; }
+    const color = CMP_COLORS[cmpCaptures.length % CMP_COLORS.length];
+    cmpCaptures.push({ name: cmpShortName(file.name), dataset: analyze(touches), color });
+    cmpScrubT = 1.0;
+    document.getElementById('cmpScrub').value = 1000;
+    renderCompare();
+  };
+  reader.readAsText(file);
+}
+
+// Compare drag-drop
+const cmpDrop = document.getElementById('cmpDrop');
+cmpDrop.addEventListener('dragover', (e) => { e.preventDefault(); cmpDrop.style.borderColor = 'rgba(0,212,255,0.9)'; });
+cmpDrop.addEventListener('dragleave', () => { cmpDrop.style.borderColor = ''; });
+cmpDrop.addEventListener('drop', (e) => {
+  e.preventDefault(); e.stopPropagation();
+  cmpDrop.style.borderColor = '';
+  Array.from(e.dataTransfer.files).slice(0, 5 - cmpCaptures.length).forEach(f => loadCmpFile(f));
+});
+
+function removeCmpCapture(idx) {
+  cmpCaptures.splice(idx, 1);
+  cmpCaptures.forEach((c, i) => c.color = CMP_COLORS[i % CMP_COLORS.length]);
+  renderCompare();
+}
+
+// =================================================================
+// Compare — full rebuild render
+// =================================================================
+function renderCompare() {
+  renderCmpPills();
+  renderCmpChart();
+  renderCmpPhones(true);
+  renderCmpStats();
+}
+
+// Lightweight per-frame redraw — no DOM rebuild
+function cmpRedraw() {
+  renderCmpChart();
+  renderCmpPhones(false);
+}
+
+// Pills
+function renderCmpPills() {
+  const container = document.getElementById('cmpPills');
+  container.innerHTML = '';
+  cmpCaptures.forEach((c, i) => {
+    const pill = document.createElement('div');
+    pill.className = 'cmp-pill';
+    pill.style.borderColor = c.color;
+    pill.style.color = c.color;
+    pill.innerHTML = `<span>${c.name}</span><span class="pill-x" onclick="removeCmpCapture(${i})">✕</span>`;
+    container.appendChild(pill);
+  });
+}
+
+// =================================================================
+// Compare — overlaid velocity chart (with scrub cursor)
+// =================================================================
+function renderCmpChart() {
+  const canvas = document.getElementById('cmpChart');
+  const wrap = canvas.parentElement;
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight - 14;
+  if (w <= 0 || h <= 0) return;
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = w * DPR; canvas.height = h * DPR;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+
+  if (!cmpCaptures.length) return;
+
+  let tMax = 0, vMax = 50;
+  cmpCaptures.forEach(({ dataset: ds }) => {
+    const dur = ds.samples[ds.samples.length - 1].t - ds.samples[0].t;
+    if (dur > tMax) tMax = dur;
+    if (ds.stats.peakV > vMax) vMax = ds.stats.peakV;
+  });
+  tMax = Math.max(0.5, tMax);
+  vMax = Math.ceil(vMax / 100) * 100;
+
+  // Grid
+  ctx.strokeStyle = 'rgba(80,200,160,0.08)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 5; i++) {
+    const y = (h / 5) * i;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+
+  // Threshold lines
+  ctx.setLineDash([3, 4]);
+  const yRel = h - (RELEASE_THRESH / vMax) * h;
+  ctx.strokeStyle = 'rgba(255,42,58,0.3)';
+  ctx.beginPath(); ctx.moveTo(0, yRel); ctx.lineTo(w, yRel); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,42,58,0.6)';
+  ctx.font = '8px JetBrains Mono';
+  ctx.fillText('REL ' + RELEASE_THRESH, 4, yRel - 2);
+  const ySet = h - (SETTLE_THRESH / vMax) * h;
+  ctx.strokeStyle = 'rgba(93,102,120,0.4)';
+  ctx.beginPath(); ctx.moveTo(0, ySet); ctx.lineTo(w, ySet); ctx.stroke();
+  ctx.fillStyle = 'rgba(140,150,170,0.6)';
+  ctx.fillText('SET ' + SETTLE_THRESH, 4, ySet - 2);
+  ctx.setLineDash([]);
+
+  // Velocity curves
+  cmpCaptures.forEach(({ dataset: ds, color }) => {
+    const { samples, vel } = ds;
+    const t0 = samples[0].t;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    samples.forEach((s, i) => {
+      const x = ((s.t - t0) / tMax) * w;
+      const y = h - (vel[i] / vMax) * h;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    // Peak dot
+    const { peakV, peakIdx } = ds.stats;
+    const px = ((samples[peakIdx].t - t0) / tMax) * w;
+    const py = h - (peakV / vMax) * h;
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  // Scrub cursor
+  const cursorX = cmpScrubT * w;
+  ctx.strokeStyle = 'rgba(92,224,168,0.7)';
+  ctx.setLineDash([2, 3]);
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(cursorX, 0); ctx.lineTo(cursorX, h); ctx.stroke();
+  ctx.setLineDash([]);
+
+  document.getElementById('cmpAxR').textContent = tMax.toFixed(2) + 's';
+  document.getElementById('cmpTDisp').textContent = (cmpScrubT * tMax).toFixed(3) + 's';
+}
+
+// =================================================================
+// Compare — phone panels  (rebuild=true recreates DOM; false = redraw only)
+// =================================================================
+function renderCmpPhones(rebuild) {
+  const container = document.getElementById('cmpPhones');
+  const PHONE_W = 80, PHONE_H = Math.round(80 * 780 / 360);
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+  if (rebuild) {
+    container.innerHTML = '';
+    if (!cmpCaptures.length) return;
+    cmpCaptures.forEach(({ name, dataset: ds, color }, idx) => {
+      const col = document.createElement('div');
+      col.className = 'cmp-phone-col';
+
+      const label = document.createElement('div');
+      label.className = 'cmp-phone-label';
+      label.style.color = color;
+      label.textContent = name;
+
+      const wrap = document.createElement('div');
+      wrap.className = 'cmp-phone-wrap';
+      wrap.style.borderColor = color + '55';
+
+      const canvas = document.createElement('canvas');
+      canvas.className = 'cmp-phone-canvas';
+      canvas.dataset.cmpIdx = idx;
+      canvas.width = PHONE_W * DPR; canvas.height = PHONE_H * DPR;
+      canvas.style.width = PHONE_W + 'px'; canvas.style.height = PHONE_H + 'px';
+      canvas.style.display = 'block';
+
+      wrap.appendChild(canvas);
+      col.appendChild(wrap);
+      col.appendChild(label);
+      container.appendChild(col);
+    });
+  }
+
+  // Redraw each canvas at current cmpScrubT
+  container.querySelectorAll('.cmp-phone-canvas').forEach(canvas => {
+    const idx = parseInt(canvas.dataset.cmpIdx);
+    const cap = cmpCaptures[idx];
+    if (!cap) return;
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const ds = cap.dataset;
+    const capDur = ds.samples[ds.samples.length - 1].t - ds.samples[0].t;
+    const tm = cmpTMax();
+    const capScrub = tm > 0 ? Math.min(1, (cmpScrubT * tm) / capDur) : 1;
+    drawPhoneToCtx(ctx, PHONE_W, PHONE_H, ds, capScrub, cap.color);
+  });
+}
+
+// Draw phone trajectory to any ctx — reuses single-view phase logic
+function drawPhoneToCtx(ctx, w, h, ds, scrub, accentColor) {
+  const vp = ds.viewport;
+  const sx = w / vp.w, sy = h / vp.h;
+  const { samples, phase, stats } = ds;
+  const maxIdx = Math.max(0, Math.floor(scrub * (samples.length - 1)));
+
+  ctx.fillStyle = '#06080c';
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(80,200,160,0.15)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
+
+  ctx.strokeStyle = 'rgba(80,200,160,0.06)';
+  for (let i = 1; i < 4; i++) {
+    ctx.beginPath();
+    ctx.moveTo(w * i/4, 0); ctx.lineTo(w * i/4, h);
+    ctx.moveTo(0, h * i/4); ctx.lineTo(w, h * i/4);
+    ctx.stroke();
+  }
+
+  const colors = { settle: '#5d6678', windup: '#f0c674', release: '#ff2a3a' };
+  for (let i = 1; i <= maxIdx; i++) {
+    const p0 = samples[i-1], p1 = samples[i];
+    ctx.strokeStyle = colors[phase[i]] || '#888';
+    ctx.lineWidth = phase[i] === 'release' ? 2.5 : 1.5;
+    ctx.globalAlpha = phase[i] === 'release' ? 1 : 0.85;
+    ctx.beginPath();
+    ctx.moveTo(p0.x * sx, p0.y * sy);
+    ctx.lineTo(p1.x * sx, p1.y * sy);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  const s0 = samples[0];
+  ctx.fillStyle = accentColor + 'aa';
+  ctx.beginPath(); ctx.arc(s0.x * sx, s0.y * sy, 3, 0, Math.PI * 2); ctx.fill();
+
+  if (scrub >= 0.999) {
+    const sE = samples[samples.length - 1];
+    ctx.fillStyle = '#ff2a3a';
+    ctx.beginPath(); ctx.arc(sE.x * sx, sE.y * sy, 3, 0, Math.PI * 2); ctx.fill();
+    const rs = samples[stats.releaseStartIdx];
+    ctx.strokeStyle = 'rgba(255,42,58,0.4)';
+    ctx.setLineDash([2, 2]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(rs.x * sx, rs.y * sy);
+    ctx.lineTo(sE.x * sx, sE.y * sy);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+// =================================================================
+// Compare — stats table
+// =================================================================
+function angleDir(a) {
+  if (a > -22.5 && a < 22.5) return 'UP';
+  if (a >= 22.5 && a < 67.5) return 'UP-RT';
+  if (a >= 67.5 && a < 112.5) return 'RT';
+  if (a >= 112.5 && a < 157.5) return 'DN-RT';
+  if (a >= 157.5 || a < -157.5) return 'DN';
+  if (a >= -157.5 && a < -112.5) return 'DN-LT';
+  if (a >= -112.5 && a < -67.5) return 'LT';
+  return 'UP-LT';
+}
+
+function renderCmpStats() {
+  const container = document.getElementById('cmpStats');
+  container.querySelectorAll('.cmp-stat-row:not(.header)').forEach(r => r.remove());
+  cmpCaptures.forEach(({ name, dataset: ds, color }) => {
+    const s = ds.stats;
+    const row = document.createElement('div');
+    row.className = 'cmp-stat-row';
+    row.innerHTML = `
+      <div class="dot" style="background:${color}"></div>
+      <div class="cmp-stat-cell" style="color:${color}">${Math.round(s.peakV)}<span style="font-size:7px;opacity:.5"> px/s</span></div>
+      <div class="cmp-stat-cell" style="color:${color}">${s.castAngle.toFixed(0)}° ${angleDir(s.castAngle)}</div>
+      <div class="cmp-stat-cell" style="color:${color}">${s.flickDist.toFixed(0)}<span style="font-size:7px;opacity:.5"> px</span></div>
+      <div class="cmp-stat-cell" style="color:${color}">${s.totalDur.toFixed(2)}<span style="font-size:7px;opacity:.5"> s</span></div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+// =================================================================
+// Compare — scrubber + playback
+// =================================================================
+const cmpScrub = document.getElementById('cmpScrub');
+cmpScrub.addEventListener('input', () => {
+  cmpScrubT = cmpScrub.value / 1000;
+  if (cmpPlaying) stopCmpPlayback();
+  cmpRedraw();
+});
+
+function startCmpPlayback() {
+  if (!cmpCaptures.length) return;
+  cmpPlaying = true;
+  document.getElementById('cmpPlayBtn').textContent = '■ STOP';
+  cmpPlayStartReal = performance.now() / 1000;
+  cmpPlayStartT = cmpScrubT >= 0.99 ? 0 : cmpScrubT;
+  tickCmpPlay();
+}
+function stopCmpPlayback() {
+  cmpPlaying = false;
+  document.getElementById('cmpPlayBtn').textContent = '▶ REPLAY';
+}
+function tickCmpPlay() {
+  if (!cmpPlaying) return;
+  const elapsed = performance.now() / 1000 - cmpPlayStartReal;
+  const dur = cmpTMax();
+  cmpScrubT = Math.min(1, cmpPlayStartT + elapsed / dur);
+  cmpScrub.value = cmpScrubT * 1000;
+  cmpRedraw();
+  if (cmpScrubT >= 1) { stopCmpPlayback(); return; }
+  requestAnimationFrame(tickCmpPlay);
+}
+document.getElementById('cmpPlayBtn').addEventListener('click', () => {
+  if (cmpPlaying) stopCmpPlayback(); else startCmpPlayback();
+});
+
+window.addEventListener('resize', () => {
+  if (document.getElementById('compare-view').style.display !== 'none') {
+    renderCmpChart();
+    renderCmpPhones(false);
+  }
+});
+</script>
+</body>
+</html>
