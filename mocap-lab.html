@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#020208">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>MOCAP LAB · 33rdPath</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;1,300&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+  html,body{width:100%;height:100%;overflow:hidden;background:#020208;font-family:'JetBrains Mono',monospace;color:#c8d4dc;overscroll-behavior:none;font-size:13px}
+  body{touch-action:none}
+
+  /* Grid background — instrument feel */
+  .grid-bg{position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(80,200,160,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(80,200,160,0.04) 1px,transparent 1px);background-size:24px 24px;z-index:1}
+
+  .lab{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto auto;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 10px) calc(env(safe-area-inset-right,0px) + 12px) calc(env(safe-area-inset-bottom,0px) + 10px) calc(env(safe-area-inset-left,0px) + 12px);z-index:5;pointer-events:auto}
+
+  /* Header bar */
+  header{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid rgba(80,200,160,0.18);padding-bottom:8px}
+  .lab-title{font-size:10px;letter-spacing:.32em;color:rgba(200,212,220,.55);font-weight:600}
+  .lab-title span{color:#5ce0a8}
+  .status{display:flex;gap:14px;align-items:center;font-size:10px;letter-spacing:.2em}
+  .rec-indicator{padding:3px 10px;border:1px solid #5ce0a8;color:#5ce0a8;font-weight:700;letter-spacing:.24em}
+  .rec-indicator.live{background:#ff2a3a;border-color:#ff2a3a;color:#fff;animation:recPulse 1s infinite}
+  .rec-indicator.stopped{background:rgba(92,224,168,.15);color:#5ce0a8}
+  @keyframes recPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,42,58,.8)}50%{box-shadow:0 0 0 6px rgba(255,42,58,0)}}
+  .meta{color:rgba(200,212,220,.55)}
+  .meta span{color:#c8d4dc;font-weight:500}
+
+  /* Readouts grid */
+  .readouts{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-content:start}
+  .block{border:1px solid rgba(80,200,160,0.18);padding:10px 12px;background:rgba(8,16,22,.4)}
+  .block .label{font-size:9px;letter-spacing:.3em;color:rgba(200,212,220,.45);text-transform:uppercase;margin-bottom:4px}
+  .block .big{font-size:28px;font-weight:600;color:#5ce0a8;letter-spacing:-.01em;line-height:1;font-variant-numeric:tabular-nums}
+  .block .big.amber{color:#f0c674}
+  .block .unit{font-size:9px;letter-spacing:.24em;color:rgba(200,212,220,.4);margin-top:3px;text-transform:uppercase}
+  .block.full{grid-column:span 2}
+
+  .axes{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px;font-size:11px}
+  .axis{display:flex;justify-content:space-between;padding:4px 8px;background:rgba(8,16,22,.5);border-left:2px solid rgba(80,200,160,.3)}
+  .axis .k{color:rgba(200,212,220,.5);letter-spacing:.16em}
+  .axis .v{color:#c8d4dc;font-variant-numeric:tabular-nums;font-weight:500}
+
+  .touch-block{display:flex;flex-direction:column;gap:4px}
+  .touch-row{display:flex;justify-content:space-between;align-items:center;font-size:11px}
+  .touch-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#444;margin-right:6px;vertical-align:middle}
+  .touch-dot.active{background:#00d4ff;box-shadow:0 0 8px rgba(0,212,255,.6)}
+
+  /* Chart */
+  .chart-wrap{position:relative;border:1px solid rgba(80,200,160,0.18);background:rgba(2,4,8,.7);min-height:140px}
+  canvas#chart{width:100%;height:100%;display:block}
+  .chart-overlay{position:absolute;top:6px;left:8px;font-size:9px;letter-spacing:.2em;color:rgba(200,212,220,.45)}
+  .chart-overlay .live{color:#5ce0a8}
+  .chart-overlay .frozen{color:#f0c674}
+
+  /* Voice + controls */
+  .controls{display:flex;flex-direction:column;gap:8px;padding-top:8px;border-top:1px solid rgba(80,200,160,0.18)}
+  .voice{display:flex;align-items:center;justify-content:center;gap:8px;width:100%}
+  .mic{font-size:16px;line-height:1}
+  .mic.live{animation:micPulse 1.4s ease-in-out infinite;color:#5ce0a8}
+  @keyframes micPulse{0%,100%{opacity:.4}50%{opacity:1}}
+  .voice-text{font-size:10px;letter-spacing:.18em;color:rgba(200,212,220,.6);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  .buttons{display:flex;gap:6px;width:100%}
+  .buttons .btn{flex:1;text-align:center;padding:12px 8px}
+  .btn{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.24em;padding:10px 16px;border:1px solid rgba(80,200,160,0.4);background:transparent;color:#5ce0a8;cursor:pointer;transition:all .15s}
+  .btn:active{transform:scale(.96)}
+  .btn:disabled{opacity:.3;cursor:not-allowed}
+  .btn.rec{border-color:#ff2a3a;color:#ff2a3a}
+  .btn.rec:not(:disabled):active{background:#ff2a3a;color:#fff}
+  .btn.stop{border-color:#f0c674;color:#f0c674}
+  .btn.stop:not(:disabled):active{background:#f0c674;color:#0a0a14}
+  .btn.export{border-color:#5ce0a8;color:#5ce0a8}
+  .btn.export:not(:disabled):active{background:#5ce0a8;color:#0a0a14}
+
+  /* Touch marker — visualizes thumb position on screen */
+  .touch-marker{position:fixed;width:60px;height:60px;border-radius:50%;border:1px solid #00d4ff;background:radial-gradient(circle,rgba(0,212,255,.25),rgba(0,212,255,0));pointer-events:none;transform:translate(-50%,-50%);z-index:50;opacity:0;transition:opacity .15s}
+  .touch-marker.active{opacity:1}
+  .touch-marker::after{content:'';position:absolute;left:50%;top:50%;width:8px;height:8px;border-radius:50%;background:#00d4ff;transform:translate(-50%,-50%);box-shadow:0 0 12px rgba(0,212,255,.8)}
+  .touch-trail{position:fixed;width:6px;height:6px;border-radius:50%;background:rgba(0,212,255,.5);pointer-events:none;transform:translate(-50%,-50%);z-index:49}
+
+  /* Gate */
+  .gate{position:fixed;inset:0;background:#020208;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:24px;z-index:100;padding:32px;transition:opacity .5s}
+  .gate.hidden{opacity:0;pointer-events:none}
+  .gate-title{font-family:'Fraunces',serif;font-weight:300;font-size:clamp(36px,9vw,64px);color:#c8d4dc;text-align:center;line-height:1}
+  .gate-title em{font-style:italic;color:#5ce0a8}
+  .gate-sub{font-size:10px;letter-spacing:.32em;color:rgba(200,212,220,.5);text-transform:uppercase}
+  .gate-instructions{font-family:'Fraunces',serif;font-weight:300;font-style:italic;font-size:15px;color:rgba(200,212,220,.7);text-align:center;line-height:1.55;max-width:520px}
+  .gate-instructions strong{font-style:normal;font-weight:500;color:#5ce0a8}
+  .gate-instructions code{font-family:'JetBrains Mono',monospace;font-style:normal;color:#f0c674;background:rgba(240,198,116,.1);padding:1px 6px;font-size:13px}
+  .gate-btn{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.32em;font-weight:700;color:#0a0a14;background:#5ce0a8;padding:18px 32px;border:none;cursor:pointer}
+  .gate-btn:active{transform:scale(.97)}
+  .gate-perms{font-size:9px;letter-spacing:.22em;color:rgba(200,212,220,.35);max-width:300px;text-align:center;line-height:1.7}
+
+  /* Toast for keyword-detected */
+  .toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Fraunces',serif;font-style:italic;font-size:32px;font-weight:300;color:#5ce0a8;text-shadow:0 0 30px rgba(92,224,168,.6);opacity:0;pointer-events:none;z-index:80;transition:opacity .25s}
+  .toast.show{opacity:1}
+  .toast.stop{color:#f0c674;text-shadow:0 0 30px rgba(240,198,116,.6)}
+
+  /* Viewer modal — guaranteed-works export fallback */
+  .viewer{position:fixed;inset:0;background:rgba(2,4,8,.96);z-index:120;display:none;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 14px) 14px calc(env(safe-area-inset-bottom,0px) + 14px);gap:10px}
+  .viewer.show{display:flex}
+  .viewer-head{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(92,224,168,.2);padding-bottom:8px}
+  .viewer-head .l{font-size:10px;letter-spacing:.28em;color:#5ce0a8;font-weight:700}
+  .viewer-head .l .label-sub{color:rgba(200,212,220,.5);margin-left:8px}
+  .viewer-head .x{font-size:18px;color:rgba(200,212,220,.55);background:none;border:none;cursor:pointer;padding:4px 10px}
+  .viewer-text{flex:1;width:100%;background:rgba(8,16,22,.7);border:1px solid rgba(92,224,168,.18);color:#c8d4dc;font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.4;padding:10px;resize:none;outline:none}
+  .viewer-foot{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .viewer-foot .hint{font-size:9px;letter-spacing:.18em;color:rgba(200,212,220,.4);flex:1}
+  .viewer-foot .actions{display:flex;gap:6px}
+</style>
+</head>
+<body>
+  <div class="grid-bg"></div>
+  <div class="touch-marker" id="touchMarker"></div>
+
+  <div class="lab" id="lab">
+    <header style="flex-direction:column; align-items:stretch; border-bottom:none; padding-bottom:0; gap:0;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; border-bottom:1px solid rgba(80,200,160,0.18); padding-bottom:8px;">
+        <div class="lab-title">⏺ MOCAP <span>LAB</span></div>
+        <div class="status">
+          <div class="rec-indicator" id="recInd">IDLE</div>
+          <div class="meta">SMP <span id="smpCount">0</span></div>
+          <div class="meta">T <span id="durTxt">0.00</span>s</div>
+        </div>
+      </div>
+      <div id="batchBanner" style="display:none; background:rgba(92,224,168,.1); border:1px solid #5ce0a8; padding:8px 12px; font-size:11px; margin-top:8px; flex-direction:column; gap:8px;">
+         <div style="display:flex; justify-content:space-between; align-items:center;">
+           <div>
+             <div style="color:#5ce0a8; font-weight:700; margin-bottom:2px; font-size:10px; letter-spacing:0.2em;">PROTOCOL <span id="batchStepNum">1/12</span></div>
+             <div style="display:flex; align-items:center; gap:8px;">
+               <div id="batchStepDesc" style="color:#c8d4dc; font-weight:bold;">Static noise floor</div>
+               <button id="batchNotesToggle" style="background:transparent; border:1px solid rgba(92,224,168,.5); color:#5ce0a8; font-size:9px; font-family:'JetBrains Mono',monospace; padding:2px 6px; border-radius:2px; cursor:pointer;">NOTES ▼</button>
+             </div>
+           </div>
+           <button id="batchSkipBtn" class="btn" style="padding:6px 10px; border-color:rgba(80,200,160,0.6);">SKIP</button>
+         </div>
+         <div id="batchNotesContent" style="display:none; border-top:1px solid rgba(80,200,160,0.2); padding-top:8px; color:rgba(200,212,220,.75); font-size:10px; line-height:1.5;">
+         </div>
+      </div>
+    </header>
+
+    <div class="readouts">
+      <div class="block">
+        <div class="label">Linear Accel · |a| <span id="clipWarn" style="display:none; color:#111; background:#f0c674; font-weight:700; margin-left:6px; padding:1px 4px; border-radius:2px; letter-spacing:0.1em;">⚠ CLIP</span></div>
+        <div class="big amber" id="aMag">0.0</div>
+        <div class="unit">m/s² · gravity-free</div>
+      </div>
+      <div class="block">
+        <div class="label">Heading · α</div>
+        <div class="big" id="heading">0°</div>
+        <div class="unit" id="cardinal">—</div>
+      </div>
+
+      <div class="block full">
+        <div class="label">Accel axes</div>
+        <div class="axes">
+          <div class="axis"><span class="k">ax</span><span class="v" id="ax">0.00</span></div>
+          <div class="axis"><span class="k">ay</span><span class="v" id="ay">0.00</span></div>
+          <div class="axis"><span class="k">az</span><span class="v" id="az">0.00</span></div>
+        </div>
+        <div class="axes" style="margin-top:6px">
+          <div class="axis"><span class="k">α</span><span class="v" id="alphaV">0</span></div>
+          <div class="axis"><span class="k">β</span><span class="v" id="betaV">0</span></div>
+          <div class="axis"><span class="k">γ</span><span class="v" id="gammaV">0</span></div>
+        </div>
+      </div>
+
+      <div class="block full touch-block">
+        <div class="label">Touch</div>
+        <div class="touch-row">
+          <div><span class="touch-dot" id="touchDot"></span><span id="touchStat">no contact</span></div>
+          <div><span class="meta">XY <span id="touchXY">— · —</span></span></div>
+        </div>
+        <div class="touch-row">
+          <div class="meta">Pressure <span id="touchP">—</span></div>
+          <div class="meta">Events <span id="touchN">0</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-wrap">
+      <div class="chart-overlay" id="chartOverlay">
+        <span class="live">● LIVE</span> · |a| amber · α cyan · touch markers
+      </div>
+      <canvas id="chart"></canvas>
+    </div>
+
+    <div style="padding-top:8px; border-top:1px solid rgba(80,200,160,0.18);">
+      <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
+        <input type="text" id="captureLabel" placeholder="label (e.g. 01_gentle)" style="background:transparent;border:none;border-bottom:1px dashed rgba(80,200,160,0.4);color:#c8d4dc;font-family:'JetBrains Mono',monospace;font-size:10px;outline:none;text-align:right;width:140px;padding-bottom:2px;">
+      </div>
+      <div class="controls" style="border-top:none; padding-top:0;">
+        <div class="voice">
+          <span class="mic" id="micIcon">🎤</span>
+          <span class="voice-text" id="voiceTxt">initializing voice…</span>
+        </div>
+        <div class="buttons">
+          <button class="btn rec" id="recBtn">REC</button>
+          <button class="btn stop" id="stopBtn" disabled>STOP</button>
+          <button class="btn export" id="exportBtn" disabled>EXPORT</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="viewer" id="viewer">
+    <div class="viewer-head">
+      <div class="l">EXPORT <span class="label-sub" id="viewerLabel">—</span> <span class="label-sub" id="viewerSize">— KB</span></div>
+      <button class="x" id="viewerClose">✕</button>
+    </div>
+    <textarea class="viewer-text" id="viewerText" readonly></textarea>
+    <div class="viewer-foot">
+      <div class="hint">File downloads tried automatically. If they were blocked, copy this JSON.</div>
+      <div class="actions">
+        <button class="btn export" id="viewerCopy">COPY JSON</button>
+        <button class="btn" id="viewerDone">DONE</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="gate" id="gate">
+    <div class="gate-title">Motion Capture <em>Lab</em></div>
+    <div class="gate-sub">33rdPath · engine/tools</div>
+    <div class="gate-instructions">
+      A sensor &amp; touch logger. Hold the phone however you'd cast — capture the truth.<br>
+      Say <code>record</code> (or start/begin/go) to start, <code>stop</code> (or end/halt/done) to stop. Manual buttons work too.<br>
+      The whole screen logs touch position &amp; pressure. Export as <strong>JSON</strong> or <strong>CSV</strong>.
+    </div>
+    <div style="display:flex; flex-direction:column; gap:12px; align-items:center;">
+      <button class="gate-btn" id="start">Grant Sensors · Mic · Free Mode</button>
+      <button class="gate-btn" id="startBatch" style="background:transparent; border:1px solid #5ce0a8; color:#5ce0a8; padding:12px 32px;">Start 12-Capture Protocol</button>
+    </div>
+    <div class="gate-perms">requires devicemotion · deviceorientation · microphone</div>
+  </div>
+
+<script>
+// ============================================================
+// State
+// ============================================================
+const State = {
+  alpha: 0, beta: 0, gamma: 0,
+  ax: 0, ay: 0, az: 0,
+  aMag: 0,
+  touchActive: false,
+  touchX: 0, touchY: 0,
+  touchPressure: 0,
+  touchEvents: 0,
+  recording: false,
+  recStart: 0,
+  motionReceived: false,
+  clipWarn: false
+};
+
+const Recording = {
+  samples: [],   // { t, ax, ay, az, alpha, beta, gamma, aMag }
+  touches: [],   // { t, type, x, y, pressure, id }
+  motionRate: 0
+};
+
+// ============================================================
+// Canvas chart
+// ============================================================
+const chartCanvas = document.getElementById('chart');
+const cctx = chartCanvas.getContext('2d');
+let CW = 0, CH = 0, DPR = 1;
+function resizeChart() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  const r = chartCanvas.getBoundingClientRect();
+  CW = r.width; CH = r.height;
+  chartCanvas.width = CW * DPR; chartCanvas.height = CH * DPR;
+  cctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener('resize', resizeChart);
+setTimeout(resizeChart, 50);
+
+const liveBuf = []; // { t, mag, heading, touch }
+const LIVE_WINDOW = 5; // seconds
+
+function pushLive(s) {
+  liveBuf.push(s);
+  const now = s.t;
+  while (liveBuf.length && now - liveBuf[0].t > LIVE_WINDOW) liveBuf.shift();
+}
+
+function drawChart() {
+  cctx.clearRect(0, 0, CW, CH);
+  if (!liveBuf.length) return;
+
+  const showFull = !State.recording && Recording.samples.length > 0 && document.getElementById('chartOverlay').dataset.mode === 'frozen';
+  const data = showFull ? Recording.samples : liveBuf;
+  const tStart = data[0].t;
+  const tEnd = showFull ? data[data.length-1].t : Math.max(data[data.length-1].t, tStart + LIVE_WINDOW);
+  const tSpan = Math.max(0.001, tEnd - tStart);
+  const yMax = 30; // m/s² max scale
+
+  // grid
+  cctx.strokeStyle = 'rgba(80,200,160,0.08)';
+  cctx.lineWidth = 1;
+  for (let i = 1; i < 5; i++) {
+    const y = (CH / 5) * i;
+    cctx.beginPath(); cctx.moveTo(0, y); cctx.lineTo(CW, y); cctx.stroke();
+  }
+  // |a| threshold reference lines
+  cctx.strokeStyle = 'rgba(240,198,116,0.15)';
+  cctx.setLineDash([3, 4]);
+  for (const v of [5, 10, 20]) {
+    const y = CH - (v / yMax) * CH;
+    cctx.beginPath(); cctx.moveTo(0, y); cctx.lineTo(CW, y); cctx.stroke();
+    cctx.fillStyle = 'rgba(240,198,116,0.4)';
+    cctx.font = '9px JetBrains Mono';
+    cctx.fillText(v.toString(), 4, y - 2);
+  }
+  cctx.setLineDash([]);
+
+  // heading trace (cyan)
+  cctx.strokeStyle = 'rgba(0,212,255,0.45)';
+  cctx.lineWidth = 1;
+  cctx.beginPath();
+  for (let i = 0; i < data.length; i++) {
+    const s = data[i];
+    const x = ((s.t - tStart) / tSpan) * CW;
+    const h = ((s.alpha || 0) % 360 + 360) % 360;
+    const y = CH - (h / 360) * CH;
+    if (i === 0) cctx.moveTo(x, y); else cctx.lineTo(x, y);
+  }
+  cctx.stroke();
+
+  // accel magnitude trace (amber)
+  cctx.strokeStyle = '#f0c674';
+  cctx.lineWidth = 1.5;
+  cctx.beginPath();
+  for (let i = 0; i < data.length; i++) {
+    const s = data[i];
+    const x = ((s.t - tStart) / tSpan) * CW;
+    const y = CH - Math.min(1, s.aMag / yMax) * CH;
+    if (i === 0) cctx.moveTo(x, y); else cctx.lineTo(x, y);
+  }
+  cctx.stroke();
+
+  // touch event markers
+  const touches = showFull ? Recording.touches : null;
+  if (touches) {
+    for (const ev of touches) {
+      const x = ((ev.t + Recording.samples[0].t - tStart) / tSpan) * CW; // ev.t is relative to rec start
+      if (ev.type === 'pointerdown') {
+        cctx.strokeStyle = 'rgba(92,224,168,0.7)';
+        cctx.lineWidth = 1.5;
+        cctx.beginPath(); cctx.moveTo(x, 0); cctx.lineTo(x, CH); cctx.stroke();
+      } else if (ev.type === 'pointerup') {
+        cctx.strokeStyle = 'rgba(255,42,58,0.7)';
+        cctx.lineWidth = 1.5;
+        cctx.beginPath(); cctx.moveTo(x, 0); cctx.lineTo(x, CH); cctx.stroke();
+      }
+    }
+  }
+}
+
+// ============================================================
+// Sensors
+// ============================================================
+let gravityX = 0, gravityY = 0, gravityZ = 0, gravityInit = false;
+
+function onOrient(e) {
+  if (e.alpha !== null) State.alpha = e.alpha;
+  if (e.beta  !== null) State.beta  = e.beta;
+  if (e.gamma !== null) State.gamma = e.gamma;
+}
+
+function onMotion(e) {
+  State.motionReceived = true;
+  const a  = e.acceleration;
+  const ag = e.accelerationIncludingGravity;
+  let ax = 0, ay = 0, az = 0;
+  const aHasSignal = a && ((a.x !== null && a.x !== 0) || (a.y !== null && a.y !== 0) || (a.z !== null && a.z !== 0));
+  if (aHasSignal) {
+    ax = a.x || 0; ay = a.y || 0; az = a.z || 0;
+  } else if (ag) {
+    if (!gravityInit) { gravityX = ag.x || 0; gravityY = ag.y || 0; gravityZ = ag.z || 0; gravityInit = true; }
+    const A = 0.9;
+    gravityX = A*gravityX + (1-A)*(ag.x || 0);
+    gravityY = A*gravityY + (1-A)*(ag.y || 0);
+    gravityZ = A*gravityZ + (1-A)*(ag.z || 0);
+    ax = (ag.x || 0) - gravityX;
+    ay = (ag.y || 0) - gravityY;
+    az = (ag.z || 0) - gravityZ;
+  }
+  State.ax = ax; State.ay = ay; State.az = az;
+  State.aMag = Math.hypot(ax, ay, az);
+
+  const now = performance.now() / 1000;
+  const sample = { t: now, ax, ay, az, alpha: State.alpha, beta: State.beta, gamma: State.gamma, aMag: State.aMag };
+  pushLive(sample);
+
+  if (State.recording) {
+    Recording.samples.push({
+      t: now - State.recStart,
+      ax, ay, az,
+      alpha: State.alpha, beta: State.beta, gamma: State.gamma,
+      aMag: State.aMag,
+      touchX: State.touchActive ? State.touchX : null,
+      touchY: State.touchActive ? State.touchY : null,
+      touchActive: State.touchActive ? 1 : 0,
+      touchP: State.touchActive ? State.touchPressure : 0
+    });
+    if (State.aMag >= 30) State.clipWarn = true;
+  }
+}
+
+// ============================================================
+// Touch
+// ============================================================
+const tMarker = document.getElementById('touchMarker');
+const trailDots = [];
+const MAX_TRAIL = 12;
+
+function onPointer(e) {
+  // Ignore the trigger button area (none in this lab — full screen is touch zone)
+  // Update state
+  if (e.type === 'pointerdown' || e.type === 'pointermove') {
+    State.touchActive = true;
+    State.touchX = e.clientX;
+    State.touchY = e.clientY;
+    State.touchPressure = e.pressure || 0;
+    tMarker.style.left = e.clientX + 'px';
+    tMarker.style.top = e.clientY + 'px';
+    tMarker.classList.add('active');
+    // trail
+    if (e.type === 'pointermove') addTrail(e.clientX, e.clientY);
+  } else if (e.type === 'pointerup' || e.type === 'pointercancel') {
+    State.touchActive = false;
+    tMarker.classList.remove('active');
+  }
+
+  // Log to recording (every event, not just down/up)
+  if (State.recording) {
+    Recording.touches.push({
+      t: performance.now() / 1000 - State.recStart,
+      type: e.type,
+      x: e.clientX, y: e.clientY,
+      pressure: e.pressure || 0,
+      id: e.pointerId
+    });
+    if (e.type === 'pointerdown' || e.type === 'pointerup') {
+      State.touchEvents++;
+    }
+  }
+}
+
+function addTrail(x, y) {
+  const d = document.createElement('div');
+  d.className = 'touch-trail';
+  d.style.left = x + 'px';
+  d.style.top = y + 'px';
+  document.body.appendChild(d);
+  trailDots.push({ el: d, born: performance.now() });
+  if (trailDots.length > MAX_TRAIL) {
+    const old = trailDots.shift();
+    old.el.remove();
+  }
+}
+
+function fadeTrails() {
+  const now = performance.now();
+  for (let i = trailDots.length - 1; i >= 0; i--) {
+    const age = now - trailDots[i].born;
+    if (age > 800) {
+      trailDots[i].el.remove();
+      trailDots.splice(i, 1);
+    } else {
+      trailDots[i].el.style.opacity = (1 - age / 800) * 0.6;
+    }
+  }
+}
+
+window.addEventListener('pointerdown', onPointer);
+window.addEventListener('pointermove', onPointer);
+window.addEventListener('pointerup', onPointer);
+window.addEventListener('pointercancel', onPointer);
+
+// ============================================================
+// Voice recognition
+// ============================================================
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let voiceWanted = false;
+let voiceTxt = document.getElementById('voiceTxt');
+let micIcon = document.getElementById('micIcon');
+
+function startVoice() {
+  if (!SR) {
+    voiceTxt.textContent = 'voice unsupported · use buttons';
+    micIcon.style.opacity = '0.2';
+    return;
+  }
+  try {
+    recognition = new SR();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+    recognition.onstart = () => {
+      micIcon.classList.add('live');
+      voiceTxt.textContent = State.recording ? 'listening for "stop/end/halt/done"…' : 'listening for "record/start/begin/go"…';
+    };
+    recognition.onresult = (e) => {
+      let txt = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        txt += e.results[i][0].transcript;
+      }
+      const t = txt.toLowerCase().trim();
+      voiceTxt.textContent = '"' + t.slice(-32) + '"';
+      // Stop wins over record (so "stop recording" stops, not starts)
+      if (!State.recording && /\b(record|start|begin|go)\b/.test(t)) {
+        showToast('record', false);
+        startRecording();
+      } else if (State.recording && /\b(stop|end|halt|done)\b/.test(t)) {
+        showToast('stop', true);
+        stopRecording();
+      }
+    };
+    recognition.onerror = (ev) => {
+      if (ev.error === 'not-allowed' || ev.error === 'permission-denied') {
+        voiceTxt.textContent = 'mic denied · use buttons';
+        micIcon.style.opacity = '0.2';
+        voiceWanted = false;
+      } else if (ev.error === 'no-speech' || ev.error === 'aborted') {
+        // silent restart on end
+      } else {
+        voiceTxt.textContent = 'voice err: ' + ev.error;
+      }
+    };
+    recognition.onend = () => {
+      micIcon.classList.remove('live');
+      if (voiceWanted) {
+        // restart so it keeps listening
+        setTimeout(() => { try { recognition.start(); } catch (e) {} }, 200);
+      }
+    };
+    voiceWanted = true;
+    recognition.start();
+  } catch (e) {
+    voiceTxt.textContent = 'voice init failed';
+  }
+}
+
+function showToast(msg, isStop) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.toggle('stop', !!isStop);
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 800);
+}
+
+// ============================================================
+// Recording control
+// ============================================================
+function startRecording() {
+  if (State.recording) return;
+  Recording.samples = [];
+  Recording.touches = [];
+  State.touchEvents = 0;
+  State.clipWarn = false;
+  State.recStart = performance.now() / 1000;
+  State.recording = true;
+  document.getElementById('recInd').textContent = 'REC';
+  document.getElementById('recInd').classList.remove('stopped');
+  document.getElementById('recInd').classList.add('live');
+  document.getElementById('recBtn').disabled = true;
+  document.getElementById('stopBtn').disabled = false;
+  document.getElementById('exportBtn').disabled = true;
+  document.getElementById('chartOverlay').dataset.mode = 'live';
+  document.getElementById('chartOverlay').innerHTML = '<span class="live">● LIVE · REC</span> · |a| amber · α cyan';
+  if (recognition && voiceWanted) {
+    voiceTxt.textContent = 'listening for "stop/end/halt/done"…';
+  }
+}
+
+function stopRecording() {
+  if (!State.recording) return;
+  State.recording = false;
+  document.getElementById('recInd').textContent = 'STOPPED';
+  document.getElementById('recInd').classList.remove('live');
+  document.getElementById('recInd').classList.add('stopped');
+  document.getElementById('recBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = true;
+  const hasData = Recording.samples.length > 0 || Recording.touches.length > 0;
+  document.getElementById('exportBtn').disabled = !hasData;
+  document.getElementById('chartOverlay').dataset.mode = 'frozen';
+  const dur = Recording.samples.length
+    ? Recording.samples[Recording.samples.length-1].t
+    : (Recording.touches.length ? Recording.touches[Recording.touches.length-1].t : 0);
+  const peak = Recording.samples.reduce((m, s) => Math.max(m, s.aMag), 0);
+  const motionMsg = Recording.samples.length === 0
+    ? '<span style="color:#ff6a6a">⚠ no motion samples</span> · touches only'
+    : `${Recording.samples.length} samp · peak ${peak.toFixed(1)} m/s²`;
+  document.getElementById('chartOverlay').innerHTML =
+    `<span class="frozen">◼ FROZEN</span> · ${motionMsg} · ${Recording.touches.length} touch · ${dur.toFixed(2)}s`;
+  if (recognition && voiceWanted) {
+    voiceTxt.textContent = 'listening for "record/start/begin/go"…';
+  }
+}
+
+document.getElementById('recBtn').addEventListener('click', startRecording);
+document.getElementById('stopBtn').addEventListener('click', stopRecording);
+
+// ============================================================
+// Export
+// ============================================================
+function exportData() {
+  if (!Recording.samples.length && !Recording.touches.length) return;
+  const tStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const userLabel = document.getElementById('captureLabel').value.trim();
+  const filePrefix = userLabel ? `mocap-${userLabel}-${tStr}` : `mocap-${tStr}`;
+  const payload = {
+    captured: new Date().toISOString(),
+    duration: Recording.samples.length ? Recording.samples[Recording.samples.length-1].t : 0,
+    sampleCount: Recording.samples.length,
+    touchEventCount: Recording.touches.length,
+    viewport: { w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio || 1 },
+    schema: {
+      samples: 't,ax,ay,az,alpha,beta,gamma,aMag,touchX,touchY,touchActive,touchP',
+      touches: 't,type,x,y,pressure,id'
+    },
+    samples: Recording.samples,
+    touches: Recording.touches
+  };
+  const json = JSON.stringify(payload, null, 2);
+
+  // CSV (samples only, with touch state inline)
+  let csv = 't,ax,ay,az,alpha,beta,gamma,aMag,touchActive,touchX,touchY,touchP\n';
+  for (const s of Recording.samples) {
+    csv += [s.t, s.ax, s.ay, s.az, s.alpha, s.beta, s.gamma, s.aMag,
+            s.touchActive, s.touchX ?? '', s.touchY ?? '', s.touchP].join(',') + '\n';
+  }
+
+  // Touch event log CSV
+  let tcsv = 't,type,x,y,pressure,id\n';
+  for (const e of Recording.touches) {
+    tcsv += [e.t, e.type, e.x, e.y, e.pressure, e.id].join(',') + '\n';
+  }
+
+  // Attempt downloads (may be blocked by iframe sandbox)
+  download(filePrefix + '.json', json, 'application/json');
+  if (Recording.samples.length) download(filePrefix + '.csv', csv, 'text/csv');
+  if (Recording.touches.length) download(filePrefix + '-touches.csv', tcsv, 'text/csv');
+
+  // Always show the viewer modal as a guaranteed-works fallback
+  showViewer(json, filePrefix);
+
+  if (typeof isBatchMode !== 'undefined' && isBatchMode) {
+    batchIndex++;
+    updateBatchUI();
+  }
+}
+function download(name, content, type) {
+  try {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+  } catch (e) { /* iframe may block — viewer handles it */ }
+}
+function showViewer(json, filenamePrefix) {
+  const v = document.getElementById('viewer');
+  document.getElementById('viewerLabel').textContent = filenamePrefix + '.json';
+  document.getElementById('viewerSize').textContent = (json.length / 1024).toFixed(1) + ' KB';
+  document.getElementById('viewerText').value = json;
+  v.classList.add('show');
+}
+async function copyToClipboard() {
+  const txt = document.getElementById('viewerText').value;
+  try {
+    await navigator.clipboard.writeText(txt);
+    const b = document.getElementById('viewerCopy');
+    const old = b.textContent;
+    b.textContent = 'COPIED ✓';
+    setTimeout(() => b.textContent = old, 1500);
+  } catch (e) {
+    // Fallback: select all
+    const ta = document.getElementById('viewerText');
+    ta.focus(); ta.select();
+  }
+}
+document.getElementById('exportBtn').addEventListener('click', exportData);
+document.getElementById('viewerClose').addEventListener('click', () => document.getElementById('viewer').classList.remove('show'));
+document.getElementById('viewerDone').addEventListener('click', () => document.getElementById('viewer').classList.remove('show'));
+document.getElementById('viewerCopy').addEventListener('click', copyToClipboard);
+
+// ============================================================
+// Main loop — UI updates
+// ============================================================
+function fmt(n, d) { return (n >= 0 ? '+' : '') + n.toFixed(d); }
+
+function uiTick() {
+  document.getElementById('aMag').textContent = State.aMag.toFixed(1);
+  const showWarn = State.recording || document.getElementById('chartOverlay').dataset.mode === 'frozen'
+    ? State.clipWarn
+    : State.aMag >= 30;
+  document.getElementById('clipWarn').style.display = showWarn ? 'inline-block' : 'none';
+  document.getElementById('ax').textContent = fmt(State.ax, 2);
+  document.getElementById('ay').textContent = fmt(State.ay, 2);
+  document.getElementById('az').textContent = fmt(State.az, 2);
+  document.getElementById('alphaV').textContent = State.alpha.toFixed(0);
+  document.getElementById('betaV').textContent = State.beta.toFixed(0);
+  document.getElementById('gammaV').textContent = State.gamma.toFixed(0);
+  const h = Math.round(((State.alpha || 0) + 360) % 360);
+  document.getElementById('heading').textContent = String(h).padStart(3, '0') + '°';
+  document.getElementById('cardinal').textContent = ['N','NE','E','SE','S','SW','W','NW'][Math.round(h/45)%8];
+
+  document.getElementById('touchDot').classList.toggle('active', State.touchActive);
+  document.getElementById('touchStat').textContent = State.touchActive ? 'active' : 'no contact';
+  document.getElementById('touchXY').textContent = State.touchActive ?
+    `${Math.round(State.touchX)} · ${Math.round(State.touchY)}` : '— · —';
+  document.getElementById('touchP').textContent = State.touchActive ? State.touchPressure.toFixed(2) : '—';
+  document.getElementById('touchN').textContent = State.touchEvents;
+
+  document.getElementById('smpCount').textContent = State.recording ? Recording.samples.length : 0;
+  document.getElementById('durTxt').textContent = State.recording
+    ? (performance.now()/1000 - State.recStart).toFixed(2)
+    : (Recording.samples.length ? Recording.samples[Recording.samples.length-1].t.toFixed(2) : '0.00');
+
+  fadeTrails();
+  drawChart();
+
+  requestAnimationFrame(uiTick);
+}
+requestAnimationFrame(uiTick);
+
+// ============================================================
+// Permission gate
+// ============================================================
+async function grantAll() {
+  let motionOK = true, micOK = true;
+
+  // Motion
+  try {
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+      motionOK = motionOK && ((await DeviceMotionEvent.requestPermission()) === 'granted');
+    }
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      motionOK = motionOK && ((await DeviceOrientationEvent.requestPermission()) === 'granted');
+    }
+  } catch (e) { motionOK = false; }
+
+  window.addEventListener('devicemotion', onMotion);
+  window.addEventListener('deviceorientation', onOrient);
+
+  // Microphone (for voice) — request explicitly so user sees the prompt
+  try {
+    await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) {
+    micOK = false;
+  }
+
+  document.getElementById('gate').classList.add('hidden');
+  resizeChart();
+  if (micOK) startVoice();
+  else { voiceTxt.textContent = 'mic denied · use buttons'; micIcon.style.opacity = '0.2'; }
+
+  // After 2.5s, if no motion arrived, flag it
+  setTimeout(() => {
+    if (!State.motionReceived) {
+      const el = document.getElementById('aMag');
+      el.textContent = '—';
+      el.style.color = '#ff6a6a';
+      document.getElementById('chartOverlay').innerHTML =
+        '<span style="color:#ff6a6a">⚠ NO MOTION EVENTS</span> · iframe may be sandboxed';
+    }
+  }, 2500);
+}
+
+const ProtocolSteps = [
+  { id: '01_static_noise', desc: 'Static noise floor', notes: 'Phone resting flat on a stable surface, no holding. Thumb pressed and held on the screen, no intentional movement. Hold 3 seconds. Release.\n\n*Purpose: absolute SETTLE threshold. Sets the floor that any real motion has to exceed to count.*' },
+  { id: '02_held_noise', desc: 'Held noise floor', notes: 'Phone in hand, held as still as possible. Thumb pressed on the screen, no intentional movement. Hold 3 seconds. Release.\n\n*Purpose: real-world SETTLE floor including hand tremor. This is the actual baseline the classifier subtracts.*' },
+  { id: '03_gentle_cast', desc: 'Gentle cast', notes: 'Press thumb on the screen where the trigger button would be. Let it settle for ~1 second. Pull the phone back slightly. Flick forward gently — skipping-a-pebble effort. Release the thumb at the top of the arc.\n\n*Purpose: power calibration point 1 (low). Sets the minimum velocity that counts as an intentional cast.*' },
+  { id: '04_medium_cast', desc: 'Medium cast', notes: 'Same sequence. What feels like 50% effort. Release thumb at the top.\n\n*Purpose: power calibration point 2 (mid). Anchors the middle of the power curve.*' },
+  { id: '05_hard_cast', desc: 'Hard cast', notes: 'Same sequence. Hardest comfortable swing. Don\'t drop the phone.\n\n*Purpose: power calibration point 3 (max). Sets the top of the power curve.*' },
+  { id: '06_aim_left', desc: 'Aim left', notes: 'Press, settle, medium-power cast angled clearly to your left. Release at top.\n\n*Purpose: direction calibration. The release vector should point screen-leftward; the analyzer maps this to "cast lands left of straight-ahead in game space."*' },
+  { id: '07_aim_right', desc: 'Aim right', notes: 'Same, angled clearly to your right.\n\n*Purpose: direction calibration mirror. Some hands have asymmetric ranges (dominant arm goes farther) — capturing both sides reveals the bias.*' },
+  { id: '08_abort', desc: 'Abort', notes: 'Press the thumb on the screen. Drift it slowly around the screen for 2 seconds. Never flick. Release at low speed.\n\n*Purpose: false-positive resilience. The classifier must reject this. Drift, scroll attempts, and accidental thumb wandering should all classify as non-cast.*' },
+  { id: '09_reel_A_drag', desc: 'Reel A · drag-down', notes: 'Press thumb at the top of the screen. Drag straight down to the bottom. Release. Press at the top again. Drag down. Repeat for ~4 seconds (about 6–8 cycles).\n\n*Hypothesis: each downstroke registers as a discrete reel tick.*' },
+  { id: '10_reel_B_rot', desc: 'Reel B · rotation', notes: 'Press thumb on the screen. Trace small clockwise circles, ~2cm diameter — like turning an imaginary reel handle. ~4 seconds.\n\n*Hypothesis: each full rotation registers as a tick. Closest to the real reel motion.*' },
+  { id: '11_reel_C_tap', desc: 'Reel C · pulse tap', notes: 'Tap-tap-tap at a steady tempo, roughly 2–3 taps per second. Don\'t drag, just tap-release-tap-release. ~4 seconds.\n\n*Hypothesis: each tap is a tick. Simplest classifier, easiest to game over.*' },
+  { id: '12_reel_D_shake', desc: 'Reel D · backward shake', notes: 'Press and hold the thumb on the screen. Shake the phone backward (toward your body) and forward repeatedly, like cranking a reel handle. ~4 seconds. Release.\n\n*Hypothesis: this matches Aaron\'s original intuition — actual phone-shake reel motion. Requires the motion sensors to work, so capture is most useful when the lab is deployed standalone (not in iframe). Captures touch data too — thumb should stay roughly stationary while the phone moves under it, which itself is a discriminable signature.*' }
+];
+let isBatchMode = false;
+let batchIndex = 0;
+
+function updateBatchUI() {
+  if (!isBatchMode) {
+    document.getElementById('batchBanner').style.display = 'none';
+    document.getElementById('captureLabel').disabled = false;
+    return;
+  }
+  if (batchIndex >= ProtocolSteps.length) {
+    isBatchMode = false;
+    document.getElementById('batchBanner').style.display = 'none';
+    document.getElementById('captureLabel').value = '';
+    document.getElementById('captureLabel').disabled = false;
+    showToast('Batch Complete', false);
+    return;
+  }
+  const step = ProtocolSteps[batchIndex];
+  document.getElementById('batchBanner').style.display = 'flex';
+  document.getElementById('batchStepNum').textContent = `${batchIndex + 1}/${ProtocolSteps.length}`;
+  document.getElementById('batchStepDesc').textContent = step.desc;
+  
+  const notesHtml = step.notes.replace(/\n\n/g, '<br><br>').replace(/\*(.*?)\*/g, '<em>$1</em>');
+  document.getElementById('batchNotesContent').innerHTML = notesHtml;
+  document.getElementById('batchNotesContent').style.display = 'none';
+  document.getElementById('batchNotesToggle').textContent = 'NOTES ▼';
+
+  document.getElementById('captureLabel').value = step.id;
+  document.getElementById('captureLabel').disabled = true;
+}
+
+document.getElementById('batchNotesToggle').addEventListener('click', () => {
+  const el = document.getElementById('batchNotesContent');
+  const isHidden = el.style.display === 'none';
+  el.style.display = isHidden ? 'block' : 'none';
+  document.getElementById('batchNotesToggle').textContent = isHidden ? 'NOTES ▲' : 'NOTES ▼';
+});
+
+document.getElementById('startBatch').addEventListener('click', () => {
+  isBatchMode = true;
+  batchIndex = 0;
+  updateBatchUI();
+  grantAll();
+});
+
+document.getElementById('batchSkipBtn').addEventListener('click', () => {
+  batchIndex++;
+  updateBatchUI();
+});
+
+document.getElementById('start').addEventListener('click', grantAll);
+</script>
+</body>
+</html>
